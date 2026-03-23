@@ -93,13 +93,54 @@
       display: none;
     }
 
-    #line-selector {
+    #bottom-dock {
       position: absolute;
-      top: max(8px, env(safe-area-inset-top));
-      right: max(8px, env(safe-area-inset-right));
-      z-index: 30;
-      width: min(60vw, 220px);
-      padding: 6px;
+      left: 50%;
+      bottom: max(8px, env(safe-area-inset-bottom));
+      transform: translateX(-50%);
+      z-index: 40;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      width: min(calc(100% - 12px), 340px);
+      pointer-events: none;
+    }
+
+    #panel-toggle {
+      pointer-events: auto;
+      border: 1px solid rgba(255, 248, 230, 0.16);
+      border-radius: 999px;
+      background: var(--panel-dark);
+      color: var(--text-main);
+      padding: 7px 14px;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.1;
+      box-shadow: var(--shadow-sm);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #bottom-panel {
+      width: 100%;
+      padding: 8px;
+      display: grid;
+      gap: 8px;
+      pointer-events: auto;
+      transition: opacity 0.18s ease, transform 0.18s ease;
+      transform-origin: bottom center;
+    }
+
+    #bottom-panel.is-hidden {
+      opacity: 0;
+      transform: translateY(12px) scale(0.98);
+      pointer-events: none;
+    }
+
+    #line-selector {
+      position: static;
+      width: 100%;
+      padding: 0;
     }
 
     #line-selector label {
@@ -190,12 +231,9 @@
     }
 
     #legend {
-      position: absolute;
-      right: max(8px, env(safe-area-inset-right));
-      bottom: max(8px, env(safe-area-inset-bottom));
-      z-index: 30;
-      width: min(54vw, 240px);
-      padding: 6px 8px;
+      position: static;
+      width: 100%;
+      padding: 0;
     }
 
     .legend-copy {
@@ -382,8 +420,8 @@
         padding: 6px 8px;
       }
 
-      #line-selector {
-        width: min(52vw, 184px);
+      #bottom-dock {
+        width: min(calc(100% - 8px), 320px);
       }
 
       #line-selector select {
@@ -391,9 +429,8 @@
         padding: 7px 26px 7px 9px;
       }
 
-      #legend {
-        width: min(50vw, 180px);
-        padding: 5px 6px;
+      #bottom-panel {
+        padding: 6px;
       }
 
       .legend-items {
@@ -425,50 +462,6 @@
 </div>
 
 <div id="shell">
-  <div id="line-selector" class="panel-card">
-    <label for="line-select">路線セレクター</label>
-    <div class="selector-row">
-      <div class="select-wrap">
-        <select id="line-select" onchange="loadLine(this.value)">
-        </select>
-      </div>
-      <div id="data-summary">読込待機中</div>
-    </div>
-  </div>
-
-  <section id="legend" class="panel-card" aria-label="列車種別の凡例">
-    <div class="legend-copy">
-      <div class="legend-title">凡例</div>
-      <div class="legend-note">ダイヤ表示優先のため縮小表示</div>
-    </div>
-    <div class="legend-items">
-      <div class="legend-chip">
-        <div class="line-sample" style="background:#212121;"></div>
-        <span>普通</span>
-      </div>
-      <div class="legend-chip">
-        <div class="line-sample" style="background:#2e7d32;"></div>
-        <span>区間快速</span>
-      </div>
-      <div class="legend-chip">
-        <div class="line-sample" style="background:#1565c0;"></div>
-        <span>快速</span>
-      </div>
-      <div class="legend-chip">
-        <div class="line-sample" style="background:#e65100;"></div>
-        <span>新快速</span>
-      </div>
-      <div class="legend-chip">
-        <div class="line-sample" style="background:#7c6f00;"></div>
-        <span>特別快速</span>
-      </div>
-      <div class="legend-chip">
-        <div class="line-sample" style="background:#d32f2f; height:4px;"></div>
-        <span>特急</span>
-      </div>
-    </div>
-  </section>
-
   <div id="app">
     <div id="corner">
       <div class="line-label">路線</div>
@@ -482,6 +475,56 @@
     </div>
     <div id="diagram-area">
       <canvas id="diagram-canvas"></canvas>
+    </div>
+  </div>
+
+  <div id="bottom-dock">
+    <button id="panel-toggle" type="button" onclick="toggleBottomPanel()" aria-expanded="false">路線・凡例を表示</button>
+
+    <div id="bottom-panel" class="panel-card is-hidden">
+      <div id="line-selector">
+        <label for="line-select">路線セレクター</label>
+        <div class="selector-row">
+          <div class="select-wrap">
+            <select id="line-select" onchange="loadLine(this.value)">
+            </select>
+          </div>
+          <div id="data-summary">読込待機中</div>
+        </div>
+      </div>
+
+      <section id="legend" aria-label="列車種別の凡例">
+        <div class="legend-copy">
+          <div class="legend-title">凡例</div>
+          <div class="legend-note">ダイヤ表示優先のため縮小表示</div>
+        </div>
+        <div class="legend-items">
+          <div class="legend-chip">
+            <div class="line-sample" style="background:#212121;"></div>
+            <span>普通</span>
+          </div>
+          <div class="legend-chip">
+            <div class="line-sample" style="background:#2e7d32;"></div>
+            <span>区間快速</span>
+          </div>
+          <div class="legend-chip">
+            <div class="line-sample" style="background:#1565c0;"></div>
+            <span>快速</span>
+          </div>
+          <div class="legend-chip">
+            <div class="line-sample" style="background:#e65100;"></div>
+            <span>新快速</span>
+          </div>
+          <div class="legend-chip">
+            <div class="line-sample" style="background:#7c6f00;"></div>
+            <span>特別快速</span>
+          </div>
+          <div class="legend-chip">
+            <div class="line-sample" style="background:#d32f2f; height:4px;"></div>
+            <span>特急</span>
+          </div>
+        </div>
+      </section>
     </div>
   </div>
 </div>
@@ -976,9 +1019,21 @@ const stationBar  = document.getElementById('station-sidebar');
 const diagCanvas  = document.getElementById('diagram-canvas');
 const timeCanvas  = document.getElementById('time-canvas');
 const stCanvas    = document.getElementById('station-canvas');
+const bottomPanel = document.getElementById('bottom-panel');
+const panelToggle = document.getElementById('panel-toggle');
 const diagCtx     = diagCanvas.getContext('2d');
 const timeCtx     = timeCanvas.getContext('2d');
 const stCtx       = stCanvas.getContext('2d');
+
+function setBottomPanelOpen(open) {
+  bottomPanel.classList.toggle('is-hidden', !open);
+  panelToggle.setAttribute('aria-expanded', String(open));
+  panelToggle.textContent = open ? '路線・凡例を閉じる' : '路線・凡例を表示';
+}
+
+function toggleBottomPanel() {
+  setBottomPanelOpen(bottomPanel.classList.contains('is-hidden'));
+}
 
 // ============================================================
 // キャンバスリサイズ
@@ -1401,6 +1456,7 @@ function loadLine(key) {
   applySidebarWidth(calcSidebarWidth(currentLine.stations));
   resizeAll();
   resetView();
+  setBottomPanelOpen(false);
 }
 
 // ============================================================
@@ -1434,6 +1490,7 @@ window.addEventListener('resize', () => {
 });
 
 resizeAll();
+setBottomPanelOpen(false);
 
 (async () => {
   const loadingMsg = document.querySelector('#loading div:last-child');
