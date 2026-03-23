@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>鉄道ダイヤグラム</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Hiragino Kaku Gothic Pro', 'Meiryo', sans-serif;
+      background: #1a1a2e;
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    #app {
+      display: grid;
+      grid-template-rows: 50px 1fr;
+      grid-template-columns: var(--sidebar-w, 80px) 1fr;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    #corner {
+      background: #16213e;
+      border-right: 1px solid #0f3460;
+      border-bottom: 1px solid #0f3460;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+    }
+
+    #corner .line-label {
+      color: #e94560;
+      font-size: 10px;
+      font-weight: bold;
+    }
+
+    #corner .line-name {
+      color: #a8dadc;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    #time-header {
+      background: #16213e;
+      border-bottom: 1px solid #0f3460;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #station-sidebar {
+      background: #16213e;
+      border-right: 1px solid #0f3460;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #diagram-area {
+      overflow: hidden;
+      position: relative;
+      cursor: grab;
+      background: #f8f9fa;
+    }
+
+    #diagram-area:active { cursor: grabbing; }
+
+    canvas { position: absolute; top: 0; left: 0; }
+
+    /* コントロールパネル */
+    #controls {
+      position: fixed;
+      top: 60px;
+      right: 12px;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .btn {
+      background: rgba(22, 33, 62, 0.92);
+      color: #a8dadc;
+      border: 1px solid #0f3460;
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn:hover, .btn:active { background: rgba(15, 52, 96, 0.95); }
+
+    /* 凡例 */
+    #legend {
+      position: fixed;
+      bottom: 60px;
+      right: 12px;
+      background: rgba(22, 33, 62, 0.92);
+      border: 1px solid #0f3460;
+      border-radius: 8px;
+      padding: 8px 12px;
+      color: #ecf0f1;
+      font-size: 11px;
+      z-index: 100;
+    }
+
+    #legend .legend-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+
+    #legend .line-sample {
+      width: 24px;
+      height: 3px;
+      border-radius: 2px;
+    }
+
+    /* 路線セレクター */
+    #line-selector {
+      position: fixed;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(22, 33, 62, 0.95);
+      border: 1px solid #0f3460;
+      border-radius: 10px;
+      padding: 8px 16px;
+      color: #a8dadc;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+    }
+
+    #line-selector select {
+      background: #0f3460;
+      color: #a8dadc;
+      border: 1px solid #457b9d;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+
+    /* 読み込み表示 */
+    #loading {
+      position: fixed;
+      inset: 0;
+      background: rgba(26, 26, 46, 0.9);
+      color: #a8dadc;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      font-size: 16px;
+      gap: 12px;
+    }
+
+    #loading.hidden { display: none; }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #0f3460;
+      border-top-color: #e94560;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+  <!-- fetch-diagram.ts で生成されたデータファイル（存在しない場合はAPI直接取得） -->
+  <script src="diagram-data.js" onerror="console.info('diagram-data.js 未生成。fetch-diagram.ts を実行してください。')"></script>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <div>ダイヤグラムを構築中...</div>
+</div>
+
+<div id="app">
+  <div id="corner">
+    <div class="line-label">路線</div>
+    <div class="line-name" id="line-name-display">飯田線</div>
+  </div>
+  <div id="time-header">
+    <canvas id="time-canvas"></canvas>
+  </div>
+  <div id="station-sidebar">
+    <canvas id="station-canvas"></canvas>
+  </div>
+  <div id="diagram-area">
+    <canvas id="diagram-canvas"></canvas>
+  </div>
+</div>
+
+<div id="controls">
+  <button class="btn" onclick="zoomBtn(1.25)" title="拡大">＋</button>
+  <button class="btn" onclick="zoomBtn(0.8)" title="縮小">－</button>
+  <button class="btn" onclick="resetView()" title="リセット" style="font-size:13px;">↺</button>
+</div>
+
+<div id="legend">
+  <div class="legend-row">
+    <div class="line-sample" style="background:#212121;"></div>
+    <span>普通</span>
+  </div>
+  <div class="legend-row">
+    <div class="line-sample" style="background:#2e7d32;"></div>
+    <span>区間快速</span>
+  </div>
+  <div class="legend-row">
+    <div class="line-sample" style="background:#1565c0;"></div>
+    <span>快速</span>
+  </div>
+  <div class="legend-row">
+    <div class="line-sample" style="background:#e65100;"></div>
+    <span>新快速</span>
+  </div>
+  <div class="legend-row">
+    <div class="line-sample" style="background:#7c6f00;"></div>
+    <span>特別快速</span>
+  </div>
+  <div class="legend-row">
+    <div class="line-sample" style="background:#d32f2f; height:5px;"></div>
+    <span>特急</span>
+  </div>
+</div>
+
+<div id="line-selector">
+  <label>路線選択：</label>
+  <select id="line-select" onchange="loadLine(this.value)">
+  </select>
+</div>
+
+<script>
+// ============================================================
+// 飯田線 駅データ（豊橋起点キロ程）
+// ============================================================
+const IIDA_STATIONS = [
+  { name: '豊橋',     km: 0.0  },
+  { name: '船町',     km: 1.5  },
+  { name: '下地',     km: 2.4  },
+  { name: '小坂井',   km: 4.0  },
+  { name: '牛久保',   km: 5.8  },
+  { name: '豊川',     km: 7.5  },
+  { name: '三河一宮', km: 10.4 },
+  { name: '長山',     km: 12.5 },
+  { name: '江島',     km: 14.1 },
+  { name: '東上',     km: 16.0 },
+  { name: '野田城',   km: 17.8 },
+  { name: '新城',     km: 20.5 },
+  { name: '東新町',   km: 21.7 },
+  { name: '茶臼山',   km: 22.8 },
+  { name: '三河東郷', km: 25.0 },
+  { name: '大海',     km: 27.2 },
+  { name: '鳥居',     km: 29.3 },
+  { name: '長篠城',   km: 31.1 },
+  { name: '本長篠',   km: 32.8 },
+  { name: '三河大野', km: 37.3 },
+  { name: '湯谷温泉', km: 39.7 },
+  { name: '三河槙原', km: 42.3 },
+  { name: '柿平',     km: 44.2 },
+  { name: '三河川合', km: 46.5 },
+  { name: '池場',     km: 49.8 },
+  { name: '東栄',     km: 52.1 },
+  { name: '出馬',     km: 55.4 },
+  { name: '上市場',   km: 57.3 },
+  { name: '浦川',     km: 59.2 },
+  { name: '早瀬',     km: 61.5 },
+  { name: '下川合',   km: 63.3 },
+  { name: '中部天竜', km: 65.3 },
+  { name: '佐久間',   km: 68.5 },
+  { name: '相月',     km: 71.2 },
+  { name: '城西',     km: 73.2 },
+  { name: '向市場',   km: 75.1 },
+  { name: '水窪',     km: 78.0 },
+  { name: '大嵐',     km: 83.2 },
+  { name: '小和田',   km: 88.4 },
+  { name: '中井侍',   km: 91.1 },
+  { name: '伊那小沢', km: 93.2 },
+  { name: '鶯巣',     km: 95.7 },
+  { name: '平岡',     km: 97.5 },
+  { name: '為栗',     km: 100.7 },
+  { name: '温田',     km: 103.1 },
+  { name: '田本',     km: 105.8 },
+  { name: '門島',     km: 108.5 },
+  { name: '唐笠',     km: 111.1 },
+  { name: '金野',     km: 113.3 },
+  { name: '千代',     km: 115.8 },
+  { name: '天竜峡',   km: 118.7 },
+  { name: '川路',     km: 121.3 },
+  { name: '時又',     km: 122.8 },
+  { name: '駄科',     km: 124.4 },
+  { name: '毛賀',     km: 125.8 },
+  { name: '伊那八幡', km: 127.3 },
+  { name: '下山村',   km: 129.0 },
+  { name: '鼎',       km: 131.0 },
+  { name: '切石',     km: 132.6 },
+  { name: '飯田',     km: 134.4 },
+  { name: '桜町',     km: 135.6 },
+  { name: '伊那上郷', km: 137.2 },
+  { name: '元善光寺', km: 138.7 },
+  { name: '下市田',   km: 140.0 },
+  { name: '市田',     km: 141.3 },
+  { name: '下平',     km: 143.0 },
+  { name: '山吹',     km: 144.7 },
+  { name: '伊那大島', km: 146.5 },
+  { name: '上片桐',   km: 149.3 },
+  { name: '伊那田島', km: 151.2 },
+  { name: '高遠原',   km: 153.3 },
+  { name: '七久保',   km: 155.8 },
+  { name: '伊那本郷', km: 158.2 },
+  { name: '飯島',     km: 160.3 },
+  { name: '田切',     km: 162.2 },
+  { name: '伊那福岡', km: 164.5 },
+  { name: '小町屋',   km: 166.3 },
+  { name: '駒ヶ根',   km: 167.8 },
+  { name: '大田切',   km: 169.4 },
+  { name: '宮田',     km: 171.0 },
+  { name: '赤木',     km: 173.0 },
+  { name: '沢渡',     km: 174.4 },
+  { name: '下島',     km: 175.9 },
+  { name: '伊那市',   km: 178.3 },
+  { name: '伊那北',   km: 179.9 },
+  { name: '田畑',     km: 182.0 },
+  { name: '北殿',     km: 183.8 },
+  { name: '木ノ下',   km: 185.5 },
+  { name: '伊那松島', km: 187.2 },
+  { name: '沢',       km: 189.3 },
+  { name: '羽場',     km: 191.2 },
+  { name: '伊那新町', km: 192.8 },
+  { name: '宮木',     km: 194.4 },
+  { name: '辰野',     km: 195.7 },
+];
+
+// ============================================================
+// 駅名→インデックス マップ（ヶ/ケ 表記揺れ対応）
+// ============================================================
+const IIDA_ST_MAP = {};
+IIDA_STATIONS.forEach((st, i) => {
+  IIDA_ST_MAP[st.name] = i;
+  IIDA_ST_MAP[st.name.replace(/ヶ/g, 'ケ').replace(/ヵ/g, 'カ')] = i;
+});
+
+// ============================================================
+// JR東海API → 内部形式 変換ユーティリティ
+// ============================================================
+function hhmm2t(s) {
+  if (!s || s.length < 4) return null;
+  const h = parseInt(s.slice(0, 2), 10);
+  const m = parseInt(s.slice(2, 4), 10);
+  if (isNaN(h) || isNaN(m)) return null;
+  return `${h}:${m.toString().padStart(2, '0')}`;
+}
+
+function getKind(typeName, trainNo) {
+  if (typeName.includes('特急') || typeName.includes('ライナー')) return 'express';
+  if (typeName.includes('新快速'))   return 'rapid_new';
+  if (typeName.includes('特別快速')) return 'rapid_special';
+  if (typeName.includes('区間快速')) return 'rapid_local';
+  if (typeName.includes('快速'))     return 'rapid';
+  if (/^[1-9]M$/.test(trainNo)) return 'express';
+  return 'local';
+}
+
+// ============================================================
+// JR東海API から飯田線全列車を取得
+// ============================================================
+async function fetchIidaTrains() {
+  const BASE      = 'https://traininfo.jr-central.co.jp/zairaisen/data/';
+  const IIDA_CODE = '050080';
+
+  const [kobeRes, zaiRes] = await Promise.all([
+    fetch(BASE + 'kobetsujikoku.json', { cache: 'no-store' }),
+    fetch(BASE + 'zaisenichi.json',    { cache: 'no-store' }),
+  ]);
+
+  const kobeData = await kobeRes.json();
+  const zaiData  = await zaiRes.json();
+
+  // 列車識別キー → 種別名マップ（zaisenichi で補完）
+  const typeMap = {};
+  for (const t of (zaiData.train_info || [])) {
+    if (t.train_identification_key)
+      typeMap[t.train_identification_key] = t.traintype?.[0]?.name || '';
+  }
+
+  const trains = [];
+
+  for (const info of (kobeData.train_info || [])) {
+    const key      = info.train_identification_key || '';
+    const trainNo  = info.trainnumber || '';
+    const typeName = typeMap[key] || info.traintype?.[0]?.name || '';
+    const kind     = getKind(typeName, trainNo);
+
+    const stops = [];
+    for (const stop of (info.timetable || [])) {
+      if (stop.run_line !== IIDA_CODE) continue;
+      if (stop.stopthroughkbn === '2') continue; // 通過駅はスキップ
+
+      const stName = (stop.station?.[0]?.name || '').trim();
+      const si = IIDA_ST_MAP[stName];
+      if (si === undefined) continue;
+
+      const arr = hhmm2t(stop.arrivalTime1   || '');
+      const dep = hhmm2t(stop.departureTime1 || '');
+      if (arr === null && dep === null) continue;
+
+      stops.push({ si, arr, dep });
+    }
+
+    if (stops.length < 2) continue;
+
+    // 0時またぎ補正（最大ギャップ法）
+    stops.sort((a, b) => t2m(a.dep || a.arr) - t2m(b.dep || b.arr));
+    {
+      const firstT = t2m(stops[0].dep || stops[0].arr);
+      const lastT  = t2m(stops[stops.length - 1].dep || stops[stops.length - 1].arr);
+      if (firstT < 3 * 60 && lastT < 3 * 60) {
+        for (const s of stops) {
+          if (s.arr) { const [h, m] = s.arr.split(':'); s.arr = `${+h + 24}:${m}`; }
+          if (s.dep) { const [h, m] = s.dep.split(':'); s.dep = `${+h + 24}:${m}`; }
+        }
+      } else {
+        let maxGap = 0, splitIdx = -1;
+        for (let i = 1; i < stops.length; i++) {
+          const gap = t2m(stops[i].dep || stops[i].arr) - t2m(stops[i-1].dep || stops[i-1].arr);
+          if (gap > maxGap) { maxGap = gap; splitIdx = i; }
+        }
+        if (maxGap > 3 * 60 && splitIdx > 0) {
+          for (let j = 0; j < splitIdx; j++) {
+            if (stops[j].arr) { const [h, m] = stops[j].arr.split(':'); stops[j].arr = `${+h + 24}:${m}`; }
+            if (stops[j].dep) { const [h, m] = stops[j].dep.split(':'); stops[j].dep = `${+h + 24}:${m}`; }
+          }
+          stops.sort((a, b) => t2m(a.dep || a.arr) - t2m(b.dep || b.arr));
+        }
+      }
+    }
+
+    const dir = stops[0].si <= stops[stops.length - 1].si ? 'down' : 'up';
+    trains.push({ dir, kind, stops, trainNo });
+  }
+
+  return trains;
+}
+
+// ============================================================
+// 旧ハードコードデータ（API取得失敗時のフォールバック）
+// ============================================================
+const IIDA_TRAINS_FALLBACK = [
+  // ===== 下り（豊橋→辰野） =====
+  // 普通 5:32 豊橋→新城
+  { dir: 'down', kind: 'local', stops: [
+    {si:0,t:'5:32'},{si:1,t:'5:36'},{si:2,t:'5:38'},{si:3,t:'5:42'},
+    {si:4,t:'5:44'},{si:5,t:'5:47'},{si:6,t:'5:53'},{si:7,t:'5:56'},
+    {si:8,t:'5:59'},{si:9,t:'6:02'},{si:10,t:'6:06'},{si:11,t:'6:13'},
+  ]},
+  // 普通 6:00 豊橋→本長篠
+  { dir: 'down', kind: 'local', stops: [
+    {si:0,t:'6:00'},{si:1,t:'6:04'},{si:2,t:'6:06'},{si:3,t:'6:10'},
+    {si:4,t:'6:12'},{si:5,t:'6:15'},{si:6,t:'6:21'},{si:7,t:'6:24'},
+    {si:8,t:'6:27'},{si:9,t:'6:30'},{si:10,t:'6:34'},{si:11,t:'6:41'},
+    {si:12,t:'6:43'},{si:13,t:'6:46'},{si:14,t:'6:52'},{si:15,t:'6:58'},
+    {si:16,t:'7:04'},{si:17,t:'7:09'},{si:18,t:'7:15'},
+  ]},
+  // 普通 6:37 豊橋→新城
+  { dir: 'down', kind: 'local', stops: [
+    {si:0,t:'6:37'},{si:1,t:'6:41'},{si:2,t:'6:43'},{si:3,t:'6:47'},
+    {si:4,t:'6:49'},{si:5,t:'6:52'},{si:6,t:'6:58'},{si:7,t:'7:01'},
+    {si:8,t:'7:04'},{si:9,t:'7:07'},{si:10,t:'7:11'},{si:11,t:'7:18'},
+  ]},
+  // 普通 7:15 豊橋→新城
+  { dir: 'down', kind: 'local', stops: [
+    {si:0,t:'7:15'},{si:1,t:'7:19'},{si:2,t:'7:21'},{si:3,t:'7:25'},
+    {si:4,t:'7:27'},{si:5,t:'7:30'},{si:6,t:'7:36'},{si:7,t:'7:39'},
+    {si:8,t:'7:42'},{si:9,t:'7:45'},{si:10,t:'7:49'},{si:11,t:'7:56'},
+  ]},
+  // 普通 8:26 豊橋→辰野
+  { dir: 'down', kind: 'local', stops: [
+    {si:0,t:'8:26'},{si:3,t:'8:34'},{si:5,t:'8:38'},{si:11,t:'8:55'},
+    {si:14,t:'9:07'},{si:18,t:'9:22'},{si:23,t:'9:48'},{si:31,t:'10:29'},
+    {si:32,t:'10:44'},{si:36,t:'11:03'},{si:37,t:'11:26'},{si:38,t:'11:56'},
+    {si:40,t:'12:16'},{si:43,t:'12:39'},{si:49,t:'13:04'},{si:58,t:'13:47'},
+    {si:68,t:'14:44'},{si:78,t:'15:27'},{si:85,t:'15:56'},{si:93,t:'16:36'},
+  ]},
+  // 特急 伊那路1号 10:00 豊橋→飯田
+  { dir: 'down', kind: 'express', stops: [
+    {si:0,t:'10:00'},{si:5,t:'10:12'},{si:11,t:'10:35'},{si:18,t:'10:50'},
+    {si:49,t:'12:07'},{si:58,t:'12:30'},
+  ]},
+  // 普通 10:22 豊橋→辰野
+  { dir: 'down', kind: 'local', stops: [
+    {si:0,t:'10:22'},{si:5,t:'10:37'},{si:11,t:'10:54'},{si:18,t:'11:19'},
+    {si:23,t:'11:42'},{si:31,t:'12:22'},{si:49,t:'14:01'},{si:58,t:'14:42'},
+    {si:68,t:'15:37'},{si:78,t:'16:17'},{si:93,t:'17:29'},
+  ]},
+  // 普通 13:05 豊橋→中部天竜
+  { dir: 'down', kind: 'local', stops: [
+    {si:0,t:'13:05'},{si:3,t:'13:14'},{si:5,t:'13:18'},{si:11,t:'13:35'},
+    {si:14,t:'13:47'},{si:18,t:'14:02'},{si:23,t:'14:25'},{si:31,t:'15:05'},
+    {si:32,t:'15:20'},
+  ]},
+  // 特急 伊那路3号 14:00 豊橋→飯田
+  { dir: 'down', kind: 'express', stops: [
+    {si:0,t:'14:00'},{si:5,t:'14:12'},{si:11,t:'14:35'},{si:18,t:'14:50'},
+    {si:49,t:'16:07'},{si:58,t:'16:30'},
+  ]},
+  // 普通 14:05 豊橋→佐久間
+  { dir: 'down', kind: 'local', stops: [
+    {si:0,t:'14:05'},{si:5,t:'14:19'},{si:11,t:'14:36'},{si:18,t:'15:00'},
+    {si:23,t:'15:23'},{si:31,t:'16:00'},{si:32,t:'16:14'},
+  ]},
+  // 普通 16:08 豊橋→豊川
+  { dir: 'down', kind: 'local', stops: [
+    {si:0,t:'16:08'},{si:1,t:'16:12'},{si:2,t:'16:14'},{si:3,t:'16:18'},
+    {si:4,t:'16:20'},{si:5,t:'16:23'},
+  ]},
+  // 普通 17:30 豊橋→新城
+  { dir: 'down', kind: 'local', stops: [
+    {si:0,t:'17:30'},{si:1,t:'17:34'},{si:2,t:'17:36'},{si:3,t:'17:40'},
+    {si:4,t:'17:42'},{si:5,t:'17:45'},{si:6,t:'17:51'},{si:7,t:'17:54'},
+    {si:8,t:'17:57'},{si:9,t:'18:00'},{si:10,t:'18:04'},{si:11,t:'18:11'},
+  ]},
+  // 普通 18:50 豊橋→新城
+  { dir: 'down', kind: 'local', stops: [
+    {si:0,t:'18:50'},{si:1,t:'18:54'},{si:2,t:'18:56'},{si:3,t:'19:00'},
+    {si:4,t:'19:02'},{si:5,t:'19:05'},{si:6,t:'19:11'},{si:7,t:'19:14'},
+    {si:8,t:'19:17'},{si:9,t:'19:20'},{si:10,t:'19:24'},{si:11,t:'19:31'},
+  ]},
+  // 普通 19:00 豊橋→天竜峡
+  { dir: 'down', kind: 'local', stops: [
+    {si:0,t:'19:00'},{si:3,t:'19:09'},{si:5,t:'19:13'},{si:11,t:'19:28'},
+    {si:14,t:'19:38'},{si:18,t:'19:51'},{si:23,t:'20:14'},{si:31,t:'20:52'},
+    {si:49,t:'22:25'},
+  ]},
+  // 普通 20:14 豊橋→豊川
+  { dir: 'down', kind: 'local', stops: [
+    {si:0,t:'20:14'},{si:1,t:'20:18'},{si:2,t:'20:20'},{si:3,t:'20:24'},
+    {si:4,t:'20:26'},{si:5,t:'20:29'},
+  ]},
+  // 普通 21:30 豊橋→新城
+  { dir: 'down', kind: 'local', stops: [
+    {si:0,t:'21:30'},{si:1,t:'21:34'},{si:2,t:'21:36'},{si:3,t:'21:40'},
+    {si:4,t:'21:42'},{si:5,t:'21:45'},{si:6,t:'21:51'},{si:7,t:'21:54'},
+    {si:8,t:'21:57'},{si:9,t:'22:00'},{si:10,t:'22:04'},{si:11,t:'22:11'},
+  ]},
+
+  // ===== 上り（辰野→豊橋） =====
+  // 普通 5:40 辰野→豊橋
+  { dir: 'up', kind: 'local', stops: [
+    {si:93,t:'5:40'},{si:85,t:'6:10'},{si:78,t:'6:41'},{si:68,t:'7:28'},
+    {si:58,t:'8:12'},{si:49,t:'8:58'},{si:38,t:'9:49'},{si:37,t:'10:19'},
+    {si:36,t:'10:40'},{si:31,t:'11:05'},{si:23,t:'11:48'},{si:18,t:'12:12'},
+    {si:11,t:'12:39'},{si:5,t:'12:55'},{si:0,t:'13:11'},
+  ]},
+  // 特急 伊那路2号 9:07 飯田→豊橋
+  { dir: 'up', kind: 'express', stops: [
+    {si:58,t:'9:07'},{si:49,t:'9:30'},{si:18,t:'10:47'},{si:11,t:'11:01'},
+    {si:5,t:'11:24'},{si:0,t:'11:36'},
+  ]},
+  // 普通 7:16 辰野→豊橋
+  { dir: 'up', kind: 'local', stops: [
+    {si:93,t:'7:16'},{si:85,t:'7:46'},{si:78,t:'8:17'},{si:68,t:'9:04'},
+    {si:58,t:'9:46'},{si:49,t:'10:30'},{si:31,t:'12:06'},{si:23,t:'12:46'},
+    {si:18,t:'13:07'},{si:11,t:'13:32'},{si:5,t:'13:47'},{si:0,t:'14:03'},
+  ]},
+  // 普通 8:13 辰野→豊橋
+  { dir: 'up', kind: 'local', stops: [
+    {si:93,t:'8:13'},{si:85,t:'8:43'},{si:78,t:'9:14'},{si:68,t:'10:01'},
+    {si:58,t:'10:43'},{si:49,t:'11:27'},{si:31,t:'13:03'},{si:23,t:'13:43'},
+    {si:18,t:'14:04'},{si:11,t:'14:29'},{si:5,t:'14:44'},{si:0,t:'15:00'},
+  ]},
+  // 普通 11:08 天竜峡→豊橋
+  { dir: 'up', kind: 'local', stops: [
+    {si:49,t:'11:08'},{si:31,t:'12:43'},{si:23,t:'13:23'},{si:18,t:'13:43'},
+    {si:11,t:'14:08'},{si:5,t:'14:23'},{si:3,t:'14:29'},{si:0,t:'14:34'},
+  ]},
+  // 普通 中部天竜→豊橋
+  { dir: 'up', kind: 'local', stops: [
+    {si:31,t:'14:08'},{si:23,t:'14:48'},{si:18,t:'15:08'},{si:11,t:'15:33'},
+    {si:5,t:'15:48'},{si:3,t:'15:54'},{si:0,t:'15:59'},
+  ]},
+  // 普通 16:34 新城→豊橋
+  { dir: 'up', kind: 'local', stops: [
+    {si:11,t:'16:34'},{si:10,t:'16:40'},{si:9,t:'16:43'},{si:8,t:'16:46'},
+    {si:7,t:'16:49'},{si:6,t:'16:52'},{si:5,t:'16:57'},{si:4,t:'17:00'},
+    {si:3,t:'17:03'},{si:2,t:'17:05'},{si:1,t:'17:08'},{si:0,t:'17:13'},
+  ]},
+  // 特急 伊那路4号 16:35 飯田→豊橋
+  { dir: 'up', kind: 'express', stops: [
+    {si:58,t:'16:35'},{si:49,t:'16:58'},{si:18,t:'18:15'},{si:11,t:'18:29'},
+    {si:5,t:'18:52'},{si:0,t:'19:04'},
+  ]},
+  // 普通 大海→豊橋
+  { dir: 'up', kind: 'local', stops: [
+    {si:15,t:'17:24'},{si:14,t:'17:30'},{si:13,t:'17:36'},{si:12,t:'17:39'},
+    {si:11,t:'17:43'},{si:10,t:'17:49'},{si:9,t:'17:52'},{si:8,t:'17:55'},
+    {si:7,t:'17:58'},{si:6,t:'18:01'},{si:5,t:'18:07'},{si:4,t:'18:10'},
+    {si:3,t:'18:13'},{si:2,t:'18:15'},{si:1,t:'18:18'},{si:0,t:'18:23'},
+  ]},
+  // 普通 本長篠→豊橋
+  { dir: 'up', kind: 'local', stops: [
+    {si:18,t:'17:55'},{si:11,t:'18:24'},{si:10,t:'18:30'},{si:9,t:'18:34'},
+    {si:8,t:'18:37'},{si:7,t:'18:40'},{si:6,t:'18:43'},{si:5,t:'18:49'},
+    {si:4,t:'18:52'},{si:3,t:'18:55'},{si:2,t:'18:57'},{si:1,t:'19:00'},
+    {si:0,t:'19:04'},
+  ]},
+  // 普通 19:52 新城→豊橋
+  { dir: 'up', kind: 'local', stops: [
+    {si:11,t:'19:52'},{si:10,t:'19:58'},{si:9,t:'20:01'},{si:8,t:'20:04'},
+    {si:7,t:'20:07'},{si:6,t:'20:10'},{si:5,t:'20:16'},{si:4,t:'20:19'},
+    {si:3,t:'20:22'},{si:2,t:'20:24'},{si:1,t:'20:27'},{si:0,t:'20:31'},
+  ]},
+  // 普通 21:05 豊川→豊橋
+  { dir: 'up', kind: 'local', stops: [
+    {si:5,t:'21:05'},{si:4,t:'21:08'},{si:3,t:'21:11'},{si:2,t:'21:13'},
+    {si:1,t:'21:16'},{si:0,t:'21:20'},
+  ]},
+  // 普通 21:45 新城→豊橋
+  { dir: 'up', kind: 'local', stops: [
+    {si:11,t:'21:45'},{si:10,t:'21:51'},{si:9,t:'21:54'},{si:8,t:'21:57'},
+    {si:7,t:'22:00'},{si:6,t:'22:03'},{si:5,t:'22:09'},{si:4,t:'22:12'},
+    {si:3,t:'22:15'},{si:2,t:'22:17'},{si:1,t:'22:20'},{si:0,t:'22:24'},
+  ]},
+];
+
+// ============================================================
+// 列車種別カラー
+// ============================================================
+function trainColor(train) {
+  switch (train.kind) {
+    case 'express':       return '#d32f2f'; // 特急：赤
+    case 'rapid_new':     return '#e65100'; // 新快速：オレンジ
+    case 'rapid_special': return '#7c6f00'; // 特別快速：黒目の黄色
+    case 'rapid_local':   return '#2e7d32'; // 区間快速：緑
+    case 'rapid':         return '#1565c0'; // 快速：青
+    default:              return '#212121'; // 普通：黒
+  }
+}
+
+// ============================================================
+// 路線定義
+// ============================================================
+const LINES = {
+  iida: {
+    name: '飯田線',
+    startHour: 5,
+    endHour: 23,
+    stations: IIDA_STATIONS,
+    trains: [],
+  },
+};
+
+// ============================================================
+// レンダリング設定
+// ============================================================
+let SIDEBAR_W = 80;      // 駅名列幅 px（後で動的計算）
+const HEADER_H  = 50;    // 時間軸高さ px
+const PX_PER_MIN = 2.5;  // 1分あたりの基本ピクセル数
+const PX_PER_KM  = 8.0;  // 1kmあたりの基本ピクセル数
+
+let currentLine = LINES.iida;
+
+let view = { offsetX: 0, offsetY: 0, scale: 1.0 };
+
+// ============================================================
+// ユーティリティ
+// ============================================================
+function t2m(str) {
+  const [h, m] = str.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function startMin() { return currentLine.startHour * 60; }
+function endMin()   { return currentLine.endHour   * 60; }
+
+function xOfMin(min) {
+  return (min - startMin()) * PX_PER_MIN * view.scale + view.offsetX;
+}
+
+function yOfKm(km) {
+  return km * PX_PER_KM * view.scale + view.offsetY;
+}
+
+// ============================================================
+// Canvas取得
+// ============================================================
+const diagArea    = document.getElementById('diagram-area');
+const timeHeader  = document.getElementById('time-header');
+const stationBar  = document.getElementById('station-sidebar');
+const diagCanvas  = document.getElementById('diagram-canvas');
+const timeCanvas  = document.getElementById('time-canvas');
+const stCanvas    = document.getElementById('station-canvas');
+const diagCtx     = diagCanvas.getContext('2d');
+const timeCtx     = timeCanvas.getContext('2d');
+const stCtx       = stCanvas.getContext('2d');
+
+// ============================================================
+// キャンバスリサイズ
+// ============================================================
+function resizeAll() {
+  const dw = diagArea.clientWidth;
+  const dh = diagArea.clientHeight;
+  diagCanvas.width  = dw;
+  diagCanvas.height = dh;
+  timeCanvas.width  = timeHeader.clientWidth;
+  timeCanvas.height = HEADER_H;
+  stCanvas.width    = SIDEBAR_W;
+  stCanvas.height   = stationBar.clientHeight;
+}
+
+// ============================================================
+// 描画: 時間軸ヘッダー
+// ============================================================
+function drawTimeHeader() {
+  const ctx = timeCtx;
+  const w = timeCanvas.width, h = HEADER_H;
+  ctx.clearRect(0, 0, w, h);
+
+  ctx.fillStyle = '#16213e';
+  ctx.fillRect(0, 0, w, h);
+
+  for (let min = startMin(); min <= endMin(); min++) {
+    const x = xOfMin(min);
+    if (x < -60 || x > w + 60) continue;
+    const moh = min % 60;
+
+    if (moh === 0) {
+      // 毎時0分：時刻ラベル
+      const hour = Math.floor(min / 60);
+      ctx.fillStyle = '#ecf0f1';
+      ctx.font = 'bold 20px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`${hour}`, x, h * 0.48);
+
+      ctx.strokeStyle = '#546e7a';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x, h * 0.65);
+      ctx.lineTo(x, h);
+      ctx.stroke();
+    } else if (moh % 10 === 0) {
+      // 10分ごと：小ラベル
+      ctx.fillStyle = '#90a4ae';
+      ctx.font = '9px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`${moh}`, x, h * 0.72);
+    }
+  }
+
+  // 下ボーダー
+  ctx.strokeStyle = '#0f3460';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, h - 0.5);
+  ctx.lineTo(w, h - 0.5);
+  ctx.stroke();
+}
+
+// ============================================================
+// 描画: 駅名サイドバー
+// ============================================================
+function drawStationSidebar() {
+  const ctx = stCtx;
+  const w = SIDEBAR_W, h = stCanvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  ctx.fillStyle = '#16213e';
+  ctx.fillRect(0, 0, w, h);
+
+  const stations = currentLine.stations;
+  const baseFontSize = Math.min(15, Math.max(10, 14 * view.scale));
+  const kmFontSize   = Math.min(12, Math.max(8,  11 * view.scale));
+
+  for (let i = 0; i < stations.length; i++) {
+    const st = stations[i];
+    const y = yOfKm(st.km);
+    if (y < -20 || y > h + 20) continue;
+
+    // 駅名
+    ctx.fillStyle = '#ecf0f1';
+    ctx.font = `${baseFontSize}px sans-serif`;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(st.name, w - 6, y);
+
+    // キロ程（主要駅のみ）
+    if (view.scale >= 0.6) {
+      ctx.fillStyle = '#7ec8e3';
+      ctx.font = `${kmFontSize}px sans-serif`;
+      ctx.fillText(`${st.km}km`, w - 6, y + baseFontSize + 1);
+    }
+
+    // 目盛り
+    ctx.strokeStyle = '#37474f';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(w - 4, y);
+    ctx.lineTo(w, y);
+    ctx.stroke();
+  }
+
+  // 右ボーダー
+  ctx.strokeStyle = '#0f3460';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(w - 0.5, 0);
+  ctx.lineTo(w - 0.5, h);
+  ctx.stroke();
+}
+
+// ============================================================
+// 描画: メインダイヤグラム
+// ============================================================
+function drawDiagram() {
+  const ctx = diagCtx;
+  const w = diagCanvas.width, h = diagCanvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, w, h);
+
+  const stations = currentLine.stations;
+  const trains   = currentLine.trains;
+
+  // ---- 時間グリッド線 ----
+  for (let min = startMin(); min <= endMin(); min++) {
+    const x = xOfMin(min);
+    if (x < 0 || x > w) continue;
+    const moh = min % 60;
+
+    // 奇数分は描画しない
+    if (moh !== 0 && moh % 10 !== 0 && moh % 2 !== 0) continue;
+
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, h);
+
+    if (moh === 0) {
+      // 毎時0分：太実線
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([]);
+    } else if (moh % 10 === 0) {
+      // 10分ごと：細実線（黒）
+      ctx.strokeStyle = '#555555';
+      ctx.lineWidth = 0.6;
+      ctx.setLineDash([]);
+    } else {
+      // 2分ごと：細点線（黒）
+      ctx.strokeStyle = '#888888';
+      ctx.lineWidth = 0.8;
+      ctx.setLineDash([2, 2]);
+    }
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  // ---- 駅グリッド線 ----
+  for (let i = 0; i < stations.length; i++) {
+    const y = yOfKm(stations[i].km);
+    if (y < 0 || y > h) continue;
+    ctx.strokeStyle = '#333333';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(w, y);
+    ctx.stroke();
+  }
+
+  // ---- 列車線 ----
+  // ズーム時に太くなりすぎないよう逆数補正（1px前後に収束）
+  const lineW = Math.max(0.8, Math.min(2.0, 1.4 / Math.sqrt(view.scale)));
+
+  // 停車時刻を取得（arr/dep 形式と旧 t 形式の両方に対応）
+  function stopArr(s) { return s.arr ?? s.t ?? null; }
+  function stopDep(s) { return s.dep ?? s.t ?? null; }
+
+  for (const train of trains) {
+    const stops = train.stops.filter(s => stations[s.si]);
+    if (stops.length < 2) continue;
+
+    const color = trainColor(train);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = train.kind === 'express' ? lineW * 2.0 : lineW;
+    ctx.setLineDash([]);
+    ctx.beginPath();
+
+    let first = true;
+    for (const stop of stops) {
+      const y   = yOfKm(stations[stop.si].km);
+      const arr = stopArr(stop);
+      const dep = stopDep(stop);
+      if (arr === null && dep === null) continue;
+
+      const xArr = xOfMin(t2m(arr ?? dep));
+      const xDep = xOfMin(t2m(dep ?? arr));
+
+      if (first) { ctx.moveTo(xArr, y); first = false; }
+      else        { ctx.lineTo(xArr, y); }
+
+      // 到着→発車の停車時間（横線）
+      if (arr !== dep) ctx.lineTo(xDep, y);
+    }
+    ctx.stroke();
+
+    // 列車番号ラベル（斜線に沿って描画）
+    if (train.trainNo && stops.length >= 2 && view.scale >= 0.4) {
+      const s0 = stops[0];
+      const s1 = stops[1];
+      const x0 = xOfMin(t2m(stopDep(s0) ?? stopArr(s0)));
+      const y0 = yOfKm(stations[s0.si].km);
+      const x1 = xOfMin(t2m(stopArr(s1) ?? stopDep(s1)));
+      const y1 = yOfKm(stations[s1.si].km);
+      // 線の角度（下り=正角度で上から下、上り=負角度で下から上）
+      const angle = Math.atan2(y1 - y0, x1 - x0);
+      // 始点から少し進んだ位置に配置
+      const lx = x0 + Math.cos(angle) * 10;
+      const ly = y0 + Math.sin(angle) * 10;
+      const size = Math.max(7, Math.min(10, 9 * view.scale));
+      ctx.save();
+      ctx.translate(lx, ly);
+      ctx.rotate(angle);
+      ctx.fillStyle = color;
+      ctx.font = `bold ${size}px sans-serif`;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(train.trainNo, 0, -2);
+      ctx.restore();
+    }
+  }
+}
+
+// ============================================================
+// 全体再描画
+// ============================================================
+function drawAll() {
+  drawDiagram();
+  drawTimeHeader();
+  drawStationSidebar();
+}
+
+// ============================================================
+// ズーム
+// ============================================================
+function zoom(factor, cx, cy) {
+  const newScale = Math.max(0.15, Math.min(6, view.scale * factor));
+  if (cx === undefined) {
+    cx = diagCanvas.width  / 2;
+    cy = diagCanvas.height / 2;
+  }
+  const ratio = newScale / view.scale;
+  view.offsetX = cx - (cx - view.offsetX) * ratio;
+  view.offsetY = cy - (cy - view.offsetY) * ratio;
+  view.scale = newScale;
+  drawAll();
+}
+
+function zoomBtn(f) { zoom(f); }
+
+function resetView() {
+  view.offsetX = 0;
+  view.offsetY = 0;
+  view.scale   = 1.0;
+  drawAll();
+}
+
+// ============================================================
+// マウス操作
+// ============================================================
+let drag = false, lx = 0, ly = 0;
+
+diagArea.addEventListener('mousedown', e => {
+  drag = true; lx = e.clientX; ly = e.clientY;
+});
+document.addEventListener('mousemove', e => {
+  if (!drag) return;
+  view.offsetX += e.clientX - lx;
+  view.offsetY += e.clientY - ly;
+  lx = e.clientX; ly = e.clientY;
+  clamp();
+  drawAll();
+});
+document.addEventListener('mouseup', () => { drag = false; });
+
+diagArea.addEventListener('wheel', e => {
+  e.preventDefault();
+  const rect = diagArea.getBoundingClientRect();
+  zoom(e.deltaY < 0 ? 1.1 : 0.9, e.clientX - rect.left, e.clientY - rect.top);
+}, { passive: false });
+
+// ============================================================
+// タッチ操作（スマホ対応）
+// ============================================================
+let touches = [], lastDist = 0, lastMidX = 0, lastMidY = 0;
+
+diagArea.addEventListener('touchstart', e => {
+  e.preventDefault();
+  touches = Array.from(e.touches);
+  if (touches.length === 2) {
+    lastDist = dist(touches);
+    const m = mid(touches);
+    lastMidX = m.x; lastMidY = m.y;
+  } else {
+    lx = touches[0].clientX; ly = touches[0].clientY;
+  }
+}, { passive: false });
+
+diagArea.addEventListener('touchmove', e => {
+  e.preventDefault();
+  const t = Array.from(e.touches);
+  const rect = diagArea.getBoundingClientRect();
+
+  if (t.length === 2 && touches.length === 2) {
+    const nd = dist(t), nm = mid(t);
+    const cx = nm.x - rect.left, cy = nm.y - rect.top;
+    if (lastDist > 0) zoom(nd / lastDist, cx, cy);
+    view.offsetX += nm.x - lastMidX;
+    view.offsetY += nm.y - lastMidY;
+    lastDist = nd; lastMidX = nm.x; lastMidY = nm.y;
+  } else if (t.length === 1) {
+    view.offsetX += t[0].clientX - lx;
+    view.offsetY += t[0].clientY - ly;
+    lx = t[0].clientX; ly = t[0].clientY;
+  }
+  touches = t;
+  clamp();
+  drawAll();
+}, { passive: false });
+
+diagArea.addEventListener('touchend', e => {
+  touches = Array.from(e.touches);
+  lastDist = 0;
+});
+
+function dist(ts) {
+  const dx = ts[0].clientX - ts[1].clientX;
+  const dy = ts[0].clientY - ts[1].clientY;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+function mid(ts) {
+  return {
+    x: (ts[0].clientX + ts[1].clientX) / 2,
+    y: (ts[0].clientY + ts[1].clientY) / 2,
+  };
+}
+
+function clamp() {
+  const maxX = 50, maxY = 50;
+  const totalW = (endMin() - startMin()) * PX_PER_MIN * view.scale;
+  const totalH = currentLine.stations.at(-1).km * PX_PER_KM * view.scale;
+  view.offsetX = Math.min(maxX, Math.max(-(totalW - diagCanvas.width  + 50), view.offsetX));
+  view.offsetY = Math.min(maxY, Math.max(-(totalH - diagCanvas.height + 50), view.offsetY));
+}
+
+// ============================================================
+// 路線切り替え
+// ============================================================
+function loadLine(key) {
+  if (!LINES[key]) return;
+  currentLine = LINES[key];
+  document.getElementById('line-name-display').textContent = currentLine.name;
+  applySidebarWidth(calcSidebarWidth(currentLine.stations));
+  resizeAll();
+  resetView();
+}
+
+// ============================================================
+// 初期化
+// ============================================================
+// ============================================================
+// 駅名幅の動的計算
+// ============================================================
+function calcSidebarWidth(stations) {
+  const tmp = document.createElement('canvas').getContext('2d');
+  let maxW = 0;
+  for (const st of stations) {
+    tmp.font = '14px sans-serif';
+    maxW = Math.max(maxW, tmp.measureText(st.name).width);
+    tmp.font = '11px sans-serif';
+    maxW = Math.max(maxW, tmp.measureText(`${st.km}km`).width);
+  }
+  return Math.ceil(maxW) + 14; // 左右パディング込み
+}
+
+function applySidebarWidth(w) {
+  SIDEBAR_W = w;
+  document.getElementById('app').style.setProperty('--sidebar-w', w + 'px');
+}
+
+window.addEventListener('resize', () => { resizeAll(); drawAll(); });
+
+resizeAll();
+
+(async () => {
+  const loadingMsg = document.querySelector('#loading div:last-child');
+
+  // ① diagram-data.js が読み込まれている場合（fetch-diagram.ts で生成済み）
+  if (window.DIAGRAM_DATA) {
+    const d = window.DIAGRAM_DATA;
+    const select = document.getElementById('line-select');
+    select.innerHTML = '';
+
+    // 新形式: DIAGRAM_DATA.lines = { key: { lineName, stations, trains, ... } }
+    if (d.lines) {
+      let totalTrains = 0;
+      for (const [key, ld] of Object.entries(d.lines)) {
+        LINES[key] = {
+          name:      ld.lineName,
+          startHour: ld.startHour ?? 3,
+          endHour:   ld.endHour   ?? 27,
+          stations:  ld.stations,
+          trains:    ld.trains,
+        };
+        totalTrains += ld.trains.length;
+        const opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = ld.lineName;
+        select.appendChild(opt);
+      }
+      // デフォルト路線（飯田線があれば飯田線、なければ最初の路線）
+      const defaultKey = Object.keys(d.lines).find(k => k === 'iida') || Object.keys(d.lines)[0];
+      select.value = defaultKey;
+      currentLine = LINES[defaultKey];
+      document.getElementById('line-name-display').textContent = currentLine.name;
+      applySidebarWidth(calcSidebarWidth(currentLine.stations));
+      loadingMsg.textContent = `ローカルデータ読込完了（${Object.keys(d.lines).length}路線 / ${totalTrains}本）`;
+
+    // 旧形式: DIAGRAM_DATA.lineKey, .stations, .trains（後方互換）
+    } else if (d.lineKey) {
+      LINES[d.lineKey] = {
+        name:      d.lineName,
+        startHour: d.startHour ?? 3,
+        endHour:   d.endHour   ?? 27,
+        stations:  d.stations,
+        trains:    d.trains,
+      };
+      const opt = document.createElement('option');
+      opt.value = d.lineKey;
+      opt.textContent = d.lineName;
+      select.appendChild(opt);
+      select.value = d.lineKey;
+      currentLine = LINES[d.lineKey];
+      document.getElementById('line-name-display').textContent = d.lineName;
+      applySidebarWidth(calcSidebarWidth(d.stations));
+      loadingMsg.textContent = `ローカルデータ読込完了（${d.trains.length}本）`;
+    }
+
+    setTimeout(() => {
+      resizeAll();
+      drawAll();
+      document.getElementById('loading').classList.add('hidden');
+    }, 300);
+    return;
+  }
+
+  // ② ローカルデータなし → API 直接取得（CORS オフ起動が必要）
+  try {
+    loadingMsg.textContent = 'JR東海サーバーからデータ取得中...';
+    const trains = await fetchIidaTrains();
+    if (trains.length === 0) throw new Error('列車データが0件');
+    LINES.iida.trains = trains;
+    loadingMsg.textContent = `${trains.length}本の列車データを取得しました`;
+  } catch (e) {
+    console.warn('API取得失敗（fetch-diagram.ts を先に実行してください）:', e);
+    loadingMsg.textContent = 'データ未取得。fetch-diagram.ts を実行してください。';
+    LINES.iida.trains = IIDA_TRAINS_FALLBACK;
+    await new Promise(r => setTimeout(r, 2000));
+  }
+  currentLine = LINES.iida;
+  applySidebarWidth(calcSidebarWidth(currentLine.stations));
+  resizeAll();
+  drawAll();
+  document.getElementById('loading').classList.add('hidden');
+})();
+</script>
+</body>
+</html>
