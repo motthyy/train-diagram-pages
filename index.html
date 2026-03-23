@@ -10,8 +10,8 @@
     :root {
       --font-ui: 'BIZ UDPGothic', 'Hiragino Sans', 'Yu Gothic UI', sans-serif;
       --font-display: 'Avenir Next', 'BIZ UDPGothic', 'Hiragino Sans', 'Yu Gothic UI', sans-serif;
-      --header-h: 76px;
-      --sidebar-w: 124px;
+      --header-h: 58px;
+      --sidebar-w: 108px;
       --bg-top: #dfead8;
       --bg-bottom: #f7f2e5;
       --panel-dark: rgba(20, 53, 40, 0.94);
@@ -72,117 +72,42 @@
     #shell {
       position: relative;
       z-index: 1;
-      display: grid;
-      grid-template-rows: auto auto minmax(0, 1fr);
-      gap: 10px;
       height: 100dvh;
       padding:
-        max(12px, env(safe-area-inset-top))
-        max(12px, env(safe-area-inset-right))
-        max(12px, env(safe-area-inset-bottom))
-        max(12px, env(safe-area-inset-left));
+        max(6px, env(safe-area-inset-top))
+        max(6px, env(safe-area-inset-right))
+        max(6px, env(safe-area-inset-bottom))
+        max(6px, env(safe-area-inset-left));
     }
 
     .panel-card {
       background: var(--panel-dark);
       border: 1px solid var(--panel-border);
-      border-radius: var(--radius-xl);
-      box-shadow: var(--shadow-lg);
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
+      border-radius: 14px;
+      box-shadow: var(--shadow-sm);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
     }
 
     #topbar {
-      display: grid;
-      grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.95fr);
-      gap: 10px;
-      min-width: 0;
-    }
-
-    #title-panel {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 18px;
-      padding: 18px 20px;
-    }
-
-    #title-panel .eyebrow {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: var(--text-muted);
-      margin-bottom: 8px;
-    }
-
-    #title-panel h1 {
-      font-family: var(--font-display);
-      font-size: clamp(24px, 3vw, 30px);
-      line-height: 1.05;
-      letter-spacing: 0.02em;
-      margin-bottom: 6px;
-    }
-
-    #title-panel p {
-      color: var(--text-muted);
-      font-size: 13px;
-      line-height: 1.45;
-    }
-
-    #line-badge {
-      flex: 0 0 auto;
-      display: grid;
-      gap: 6px;
-      min-width: 132px;
-      padding: 14px 16px;
-      border-radius: 18px;
-      background: linear-gradient(180deg, rgba(255, 248, 230, 0.12), rgba(255, 248, 230, 0.06));
-      border: 1px solid rgba(255, 248, 230, 0.18);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
-    }
-
-    .badge-label {
-      font-size: 11px;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--text-muted);
-    }
-
-    #active-line-chip {
-      font-size: 18px;
-      line-height: 1.2;
-      color: var(--text-main);
-    }
-
-    #control-panel {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 10px;
-      min-width: 0;
+      display: none;
     }
 
     #line-selector {
-      display: grid;
-      gap: 10px;
-      padding: 14px 16px;
-      min-width: 0;
+      position: absolute;
+      top: max(8px, env(safe-area-inset-top));
+      right: max(8px, env(safe-area-inset-right));
+      z-index: 30;
+      width: min(60vw, 220px);
+      padding: 6px;
     }
 
     #line-selector label {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.16em;
-      text-transform: uppercase;
-      color: var(--text-muted);
+      display: none;
     }
 
     .selector-row {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 10px;
-      align-items: center;
-      min-width: 0;
+      display: block;
     }
 
     .select-wrap {
@@ -193,10 +118,10 @@
     .select-wrap::after {
       content: '⌄';
       position: absolute;
-      right: 14px;
+      right: 10px;
       top: 50%;
       transform: translateY(-55%);
-      font-size: 18px;
+      font-size: 15px;
       color: var(--text-muted);
       pointer-events: none;
     }
@@ -205,36 +130,24 @@
       width: 100%;
       appearance: none;
       border: 1px solid rgba(255, 248, 230, 0.18);
-      border-radius: 16px;
+      border-radius: 10px;
       background: linear-gradient(180deg, rgba(255, 248, 230, 0.14), rgba(255, 248, 230, 0.08));
       color: var(--text-main);
-      padding: 14px 42px 14px 14px;
-      font-size: 16px;
+      padding: 8px 28px 8px 10px;
+      font-size: 13px;
       font-weight: 700;
       outline: none;
       cursor: pointer;
       min-width: 0;
+      line-height: 1.2;
     }
 
     #data-summary {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 10px 12px;
-      border-radius: 14px;
-      border: 1px solid rgba(255, 248, 230, 0.14);
-      background: rgba(255, 248, 230, 0.10);
-      color: var(--text-muted);
-      font-size: 12px;
-      font-weight: 700;
-      white-space: nowrap;
+      display: none;
     }
 
     #controls {
-      display: flex;
-      gap: 10px;
-      padding: 10px;
-      align-items: stretch;
+      display: none;
     }
 
     .btn {
@@ -277,17 +190,16 @@
     }
 
     #legend {
-      display: grid;
-      grid-template-columns: auto minmax(0, 1fr);
-      gap: 14px;
-      align-items: center;
-      padding: 14px 18px;
+      position: absolute;
+      right: max(8px, env(safe-area-inset-right));
+      bottom: max(8px, env(safe-area-inset-bottom));
+      z-index: 30;
+      width: min(54vw, 240px);
+      padding: 6px 8px;
     }
 
     .legend-copy {
-      display: grid;
-      gap: 4px;
-      min-width: 0;
+      display: none;
     }
 
     .legend-title {
@@ -307,26 +219,27 @@
     .legend-items {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
+      gap: 4px 6px;
       min-width: 0;
     }
 
     .legend-chip {
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      padding: 8px 12px;
+      gap: 5px;
+      padding: 3px 6px;
       border-radius: 999px;
       background: rgba(255, 248, 230, 0.12);
       border: 1px solid rgba(255, 248, 230, 0.14);
       color: var(--text-main);
-      font-size: 12px;
+      font-size: 10px;
+      line-height: 1.15;
       white-space: nowrap;
     }
 
     .legend-chip .line-sample {
-      width: 24px;
-      height: 4px;
+      width: 14px;
+      height: 3px;
       border-radius: 999px;
       flex: 0 0 auto;
     }
@@ -335,8 +248,9 @@
       display: grid;
       grid-template-rows: var(--header-h) minmax(0, 1fr);
       grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+      height: 100%;
       min-height: 0;
-      border-radius: 30px;
+      border-radius: 18px;
       overflow: hidden;
       border: 1px solid rgba(32, 58, 45, 0.14);
       background: var(--panel-plain);
@@ -351,14 +265,14 @@
       flex-direction: column;
       align-items: flex-start;
       justify-content: center;
-      gap: 4px;
-      padding: 12px 14px;
+      gap: 2px;
+      padding: 8px 10px;
       z-index: 10;
     }
 
     #corner .line-label {
       color: var(--text-muted);
-      font-size: 10px;
+      font-size: 8px;
       font-weight: 700;
       letter-spacing: 0.12em;
       text-transform: uppercase;
@@ -366,7 +280,7 @@
 
     #corner .line-name {
       color: var(--text-main);
-      font-size: clamp(14px, 1.8vw, 18px);
+      font-size: clamp(11px, 1.6vw, 15px);
       font-weight: 700;
       line-height: 1.25;
     }
@@ -433,104 +347,66 @@
       animation: spin 0.8s linear infinite;
     }
 
-    @media (max-width: 980px) {
-      #topbar {
-        grid-template-columns: 1fr;
-      }
-    }
-
     @media (max-width: 620px) {
       :root {
-        --header-h: 80px;
+        --header-h: 54px;
       }
 
       #shell {
-        gap: 8px;
-      }
-
-      #title-panel {
-        flex-direction: column;
-        align-items: flex-start;
-        padding: 16px;
-      }
-
-      #line-badge {
-        width: 100%;
-        min-width: 0;
-        grid-template-columns: auto 1fr;
-        align-items: center;
-      }
-
-      #control-panel {
-        grid-template-columns: 1fr;
-      }
-
-      .selector-row {
-        grid-template-columns: 1fr;
-      }
-
-      #controls {
-        padding: 8px;
-      }
-
-      .btn {
-        min-width: 0;
-        flex: 1 1 0;
-        min-height: 58px;
-      }
-
-      #legend {
-        grid-template-columns: 1fr;
-        gap: 10px;
-        padding: 12px 14px;
+        padding:
+          max(4px, env(safe-area-inset-top))
+          max(4px, env(safe-area-inset-right))
+          max(4px, env(safe-area-inset-bottom))
+          max(4px, env(safe-area-inset-left));
       }
     }
 
     @media (max-width: 460px) {
       :root {
-        --header-h: 84px;
+        --header-h: 50px;
       }
 
       #shell {
         padding:
-          max(10px, env(safe-area-inset-top))
-          max(10px, env(safe-area-inset-right))
-          max(10px, env(safe-area-inset-bottom))
-          max(10px, env(safe-area-inset-left));
-      }
-
-      #title-panel {
-        padding: 12px 14px;
-        gap: 10px;
-      }
-
-      #title-panel h1 {
-        font-size: 24px;
-      }
-
-      #title-panel p,
-      .legend-note {
-        font-size: 12px;
-      }
-
-      #title-panel p {
-        display: none;
-      }
-
-      #line-badge {
-        padding: 10px 12px;
-      }
-
-      #active-line-chip {
-        font-size: 16px;
+          max(3px, env(safe-area-inset-top))
+          max(3px, env(safe-area-inset-right))
+          max(3px, env(safe-area-inset-bottom))
+          max(3px, env(safe-area-inset-left));
       }
 
       #app {
-        border-radius: 24px;
+        border-radius: 14px;
       }
 
       #corner {
-        padding: 10px 12px;
+        padding: 6px 8px;
+      }
+
+      #line-selector {
+        width: min(52vw, 184px);
+      }
+
+      #line-selector select {
+        font-size: 12px;
+        padding: 7px 26px 7px 9px;
+      }
+
+      #legend {
+        width: min(50vw, 180px);
+        padding: 5px 6px;
+      }
+
+      .legend-items {
+        gap: 3px 4px;
+      }
+
+      .legend-chip {
+        padding: 2px 5px;
+        font-size: 9px;
+      }
+
+      .legend-chip .line-sample {
+        width: 12px;
       }
     }
 
@@ -549,52 +425,21 @@
 </div>
 
 <div id="shell">
-  <header id="topbar">
-    <section id="title-panel" class="panel-card">
-      <div class="title-copy">
-        <div class="eyebrow">JR Central Local Diagram</div>
-        <h1>鉄道ダイヤグラム</h1>
-        <p>当日の運行図を 3時〜27時で表示。ドラッグ・ピンチ・ダブルタップに対応します。</p>
+  <div id="line-selector" class="panel-card">
+    <label for="line-select">路線セレクター</label>
+    <div class="selector-row">
+      <div class="select-wrap">
+        <select id="line-select" onchange="loadLine(this.value)">
+        </select>
       </div>
-      <div id="line-badge">
-        <span class="badge-label">表示中</span>
-        <strong id="active-line-chip">飯田線</strong>
-      </div>
-    </section>
-
-    <section id="control-panel">
-      <div id="line-selector" class="panel-card">
-        <label for="line-select">路線セレクター</label>
-        <div class="selector-row">
-          <div class="select-wrap">
-            <select id="line-select" onchange="loadLine(this.value)">
-            </select>
-          </div>
-          <div id="data-summary">読込待機中</div>
-        </div>
-      </div>
-
-      <div id="controls" class="panel-card" role="group" aria-label="表示操作">
-        <button class="btn" onclick="zoomBtn(1.25)" title="拡大">
-          <span class="btn-symbol">＋</span>
-          <span class="btn-text">拡大</span>
-        </button>
-        <button class="btn" onclick="zoomBtn(0.8)" title="縮小">
-          <span class="btn-symbol">－</span>
-          <span class="btn-text">縮小</span>
-        </button>
-        <button class="btn" onclick="resetView()" title="初期表示">
-          <span class="btn-symbol">↺</span>
-          <span class="btn-text">初期表示</span>
-        </button>
-      </div>
-    </section>
-  </header>
+      <div id="data-summary">読込待機中</div>
+    </div>
+  </div>
 
   <section id="legend" class="panel-card" aria-label="列車種別の凡例">
     <div class="legend-copy">
       <div class="legend-title">凡例</div>
-      <div class="legend-note">1本指で移動 / 2本指で拡大縮小 / ダブルタップで拡大</div>
+      <div class="legend-note">ダイヤ表示優先のため縮小表示</div>
     </div>
     <div class="legend-items">
       <div class="legend-chip">
@@ -618,7 +463,7 @@
         <span>特別快速</span>
       </div>
       <div class="legend-chip">
-        <div class="line-sample" style="background:#d32f2f; height:5px;"></div>
+        <div class="line-sample" style="background:#d32f2f; height:4px;"></div>
         <span>特急</span>
       </div>
     </div>
@@ -1081,7 +926,7 @@ const UI_THEME = {
   stationGrid: 'rgba(35, 59, 47, 0.16)',
 };
 
-let SIDEBAR_W = 124;     // 駅名列幅 px（後で動的計算）
+let SIDEBAR_W = 108;     // 駅名列幅 px（後で動的計算）
 const PX_PER_MIN = 2.5;  // 1分あたりの基本ピクセル数
 const PX_PER_KM  = 8.0;  // 1kmあたりの基本ピクセル数
 
@@ -1109,16 +954,17 @@ function yOfKm(km) {
 }
 
 function isCompactViewport() {
-  return window.innerWidth <= 460;
+  return window.innerWidth <= 560;
 }
 
 function updateLineChrome() {
-  document.getElementById('line-name-display').textContent = currentLine.name;
-  document.getElementById('active-line-chip').textContent = currentLine.name;
+  const lineName = document.getElementById('line-name-display');
+  if (lineName) lineName.textContent = currentLine.name;
 }
 
 function updateDataSummary(text) {
-  document.getElementById('data-summary').textContent = text;
+  const summary = document.getElementById('data-summary');
+  if (summary) summary.textContent = text;
 }
 
 // ============================================================
@@ -1567,12 +1413,12 @@ function calcSidebarWidth(stations) {
   const tmp = document.createElement('canvas').getContext('2d');
   let maxW = 0;
   for (const st of stations) {
-    tmp.font = `700 ${isCompactViewport() ? 13 : 14}px ${FONT_FAMILY}`;
+    tmp.font = `700 ${isCompactViewport() ? 12 : 14}px ${FONT_FAMILY}`;
     maxW = Math.max(maxW, tmp.measureText(st.name).width);
   }
-  const minW = isCompactViewport() ? 116 : 124;
-  const maxWLimit = isCompactViewport() ? Math.floor(window.innerWidth * 0.34) : 190;
-  return Math.max(minW, Math.min(maxWLimit, Math.ceil(maxW) + 28));
+  const minW = isCompactViewport() ? 88 : 108;
+  const maxWLimit = isCompactViewport() ? Math.floor(window.innerWidth * 0.27) : 170;
+  return Math.max(minW, Math.min(maxWLimit, Math.ceil(maxW) + (isCompactViewport() ? 16 : 24)));
 }
 
 function applySidebarWidth(w) {
