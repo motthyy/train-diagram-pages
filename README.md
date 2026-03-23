@@ -1,6 +1,6 @@
 # ダイヤグラム表示
 
-JR東海 在来線ダイヤグラムの表示ページです。
+表示ページです。
 
 👉 **[ダイヤグラムを開く](https://motthyy.github.io/train-diagram-pages/)**
 
