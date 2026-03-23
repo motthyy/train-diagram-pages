@@ -7,57 +7,380 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>鉄道ダイヤグラム</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --font-ui: 'BIZ UDPGothic', 'Hiragino Sans', 'Yu Gothic UI', sans-serif;
+      --font-display: 'Avenir Next', 'BIZ UDPGothic', 'Hiragino Sans', 'Yu Gothic UI', sans-serif;
+      --header-h: 76px;
+      --sidebar-w: 124px;
+      --bg-top: #dfead8;
+      --bg-bottom: #f7f2e5;
+      --panel-dark: rgba(20, 53, 40, 0.94);
+      --panel-dark-2: rgba(31, 69, 54, 0.96);
+      --panel-plain: rgba(255, 250, 240, 0.74);
+      --panel-border: rgba(255, 244, 221, 0.16);
+      --panel-stroke: #315f4d;
+      --text-main: #f8f4e8;
+      --text-muted: #d7d0bb;
+      --text-soft: #5e645c;
+      --accent: #c56b33;
+      --accent-soft: rgba(197, 107, 51, 0.14);
+      --shadow-lg: 0 18px 36px rgba(53, 56, 43, 0.16);
+      --shadow-sm: 0 10px 20px rgba(19, 33, 25, 0.18);
+      --radius-xl: 26px;
+      --radius-lg: 18px;
+      --radius-md: 14px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+    }
 
     body {
-      font-family: 'Hiragino Kaku Gothic Pro', 'Meiryo', sans-serif;
-      background: #1a1a2e;
+      font-family: var(--font-ui);
+      background:
+        radial-gradient(circle at top right, rgba(197, 107, 51, 0.16), transparent 28%),
+        radial-gradient(circle at bottom left, rgba(53, 96, 73, 0.14), transparent 32%),
+        linear-gradient(160deg, var(--bg-top) 0%, #ece5d3 48%, var(--bg-bottom) 100%);
+      color: var(--text-main);
       overflow: hidden;
-      height: 100vh;
-      width: 100vw;
+      min-height: 100dvh;
+      overscroll-behavior: none;
     }
 
-    #app {
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        linear-gradient(90deg, rgba(255, 255, 255, 0.14) 0, rgba(255, 255, 255, 0.14) 1px, transparent 1px, transparent 56px),
+        linear-gradient(rgba(255, 255, 255, 0.10) 0, rgba(255, 255, 255, 0.10) 1px, transparent 1px, transparent 56px);
+      opacity: 0.14;
+      pointer-events: none;
+    }
+
+    button, select, canvas {
+      font: inherit;
+    }
+
+    #shell {
+      position: relative;
+      z-index: 1;
       display: grid;
-      grid-template-rows: 50px 1fr;
-      grid-template-columns: var(--sidebar-w, 80px) 1fr;
-      height: 100vh;
-      width: 100vw;
+      grid-template-rows: auto auto minmax(0, 1fr);
+      gap: 10px;
+      height: 100dvh;
+      padding:
+        max(12px, env(safe-area-inset-top))
+        max(12px, env(safe-area-inset-right))
+        max(12px, env(safe-area-inset-bottom))
+        max(12px, env(safe-area-inset-left));
     }
 
-    #corner {
-      background: #16213e;
-      border-right: 1px solid #0f3460;
-      border-bottom: 1px solid #0f3460;
+    .panel-card {
+      background: var(--panel-dark);
+      border: 1px solid var(--panel-border);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-lg);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+    }
+
+    #topbar {
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.95fr);
+      gap: 10px;
+      min-width: 0;
+    }
+
+    #title-panel {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 18px 20px;
+    }
+
+    #title-panel .eyebrow {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    #title-panel h1 {
+      font-family: var(--font-display);
+      font-size: clamp(24px, 3vw, 30px);
+      line-height: 1.05;
+      letter-spacing: 0.02em;
+      margin-bottom: 6px;
+    }
+
+    #title-panel p {
+      color: var(--text-muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    #line-badge {
+      flex: 0 0 auto;
+      display: grid;
+      gap: 6px;
+      min-width: 132px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: linear-gradient(180deg, rgba(255, 248, 230, 0.12), rgba(255, 248, 230, 0.06));
+      border: 1px solid rgba(255, 248, 230, 0.18);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
+
+    .badge-label {
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    #active-line-chip {
+      font-size: 18px;
+      line-height: 1.2;
+      color: var(--text-main);
+    }
+
+    #control-panel {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    #line-selector {
+      display: grid;
+      gap: 10px;
+      padding: 14px 16px;
+      min-width: 0;
+    }
+
+    #line-selector label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .selector-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      min-width: 0;
+    }
+
+    .select-wrap {
+      position: relative;
+      min-width: 0;
+    }
+
+    .select-wrap::after {
+      content: '⌄';
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-55%);
+      font-size: 18px;
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+
+    #line-selector select {
+      width: 100%;
+      appearance: none;
+      border: 1px solid rgba(255, 248, 230, 0.18);
+      border-radius: 16px;
+      background: linear-gradient(180deg, rgba(255, 248, 230, 0.14), rgba(255, 248, 230, 0.08));
+      color: var(--text-main);
+      padding: 14px 42px 14px 14px;
+      font-size: 16px;
+      font-weight: 700;
+      outline: none;
+      cursor: pointer;
+      min-width: 0;
+    }
+
+    #data-summary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 248, 230, 0.14);
+      background: rgba(255, 248, 230, 0.10);
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    #controls {
+      display: flex;
+      gap: 10px;
+      padding: 10px;
+      align-items: stretch;
+    }
+
+    .btn {
+      min-width: 84px;
+      padding: 10px 12px;
+      border: 1px solid rgba(255, 248, 230, 0.16);
+      border-radius: 18px;
+      background: linear-gradient(180deg, rgba(255, 248, 230, 0.18), rgba(255, 248, 230, 0.08));
+      color: var(--text-main);
+      cursor: pointer;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
+      gap: 3px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), var(--shadow-sm);
+      transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    .btn:hover {
+      background: linear-gradient(180deg, rgba(255, 248, 230, 0.22), rgba(255, 248, 230, 0.12));
+      border-color: rgba(255, 248, 230, 0.22);
+    }
+
+    .btn:active {
+      transform: translateY(1px) scale(0.99);
+    }
+
+    .btn-symbol {
+      font-size: 22px;
+      line-height: 1;
+    }
+
+    .btn-text {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+    }
+
+    #legend {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 14px;
+      align-items: center;
+      padding: 14px 18px;
+    }
+
+    .legend-copy {
+      display: grid;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .legend-title {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .legend-note {
+      color: var(--text-main);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .legend-items {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .legend-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255, 248, 230, 0.12);
+      border: 1px solid rgba(255, 248, 230, 0.14);
+      color: var(--text-main);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .legend-chip .line-sample {
+      width: 24px;
+      height: 4px;
+      border-radius: 999px;
+      flex: 0 0 auto;
+    }
+
+    #app {
+      display: grid;
+      grid-template-rows: var(--header-h) minmax(0, 1fr);
+      grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+      min-height: 0;
+      border-radius: 30px;
+      overflow: hidden;
+      border: 1px solid rgba(32, 58, 45, 0.14);
+      background: var(--panel-plain);
+      box-shadow: var(--shadow-lg);
+    }
+
+    #corner {
+      background: linear-gradient(180deg, var(--panel-dark-2), var(--panel-dark));
+      border-right: 1px solid var(--panel-stroke);
+      border-bottom: 1px solid var(--panel-stroke);
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+      gap: 4px;
+      padding: 12px 14px;
       z-index: 10;
     }
 
     #corner .line-label {
-      color: #e94560;
+      color: var(--text-muted);
       font-size: 10px;
-      font-weight: bold;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
     }
 
     #corner .line-name {
-      color: #a8dadc;
-      font-size: 12px;
-      font-weight: bold;
+      color: var(--text-main);
+      font-size: clamp(14px, 1.8vw, 18px);
+      font-weight: 700;
+      line-height: 1.25;
     }
 
     #time-header {
-      background: #16213e;
-      border-bottom: 1px solid #0f3460;
+      background: linear-gradient(180deg, var(--panel-dark-2), var(--panel-dark));
+      border-bottom: 1px solid var(--panel-stroke);
       overflow: hidden;
       position: relative;
     }
 
     #station-sidebar {
-      background: #16213e;
-      border-right: 1px solid #0f3460;
+      background: linear-gradient(180deg, var(--panel-dark-2), var(--panel-dark));
+      border-right: 1px solid var(--panel-stroke);
       overflow: hidden;
       position: relative;
     }
@@ -66,102 +389,26 @@
       overflow: hidden;
       position: relative;
       cursor: grab;
-      background: #f8f9fa;
+      background: #fffaf0;
+      touch-action: none;
+      user-select: none;
     }
 
-    #diagram-area:active { cursor: grabbing; }
-
-    canvas { position: absolute; top: 0; left: 0; }
-
-    /* コントロールパネル */
-    #controls {
-      position: fixed;
-      top: 60px;
-      right: 12px;
-      z-index: 100;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
+    #diagram-area:active {
+      cursor: grabbing;
     }
 
-    .btn {
-      background: rgba(22, 33, 62, 0.92);
-      color: #a8dadc;
-      border: 1px solid #0f3460;
-      width: 40px;
-      height: 40px;
-      border-radius: 8px;
-      font-size: 18px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background 0.2s;
-      -webkit-tap-highlight-color: transparent;
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
     }
 
-    .btn:hover, .btn:active { background: rgba(15, 52, 96, 0.95); }
-
-    /* 凡例 */
-    #legend {
-      position: fixed;
-      bottom: 60px;
-      right: 12px;
-      background: rgba(22, 33, 62, 0.92);
-      border: 1px solid #0f3460;
-      border-radius: 8px;
-      padding: 8px 12px;
-      color: #ecf0f1;
-      font-size: 11px;
-      z-index: 100;
-    }
-
-    #legend .legend-row {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      margin-bottom: 4px;
-    }
-
-    #legend .line-sample {
-      width: 24px;
-      height: 3px;
-      border-radius: 2px;
-    }
-
-    /* 路線セレクター */
-    #line-selector {
-      position: fixed;
-      bottom: 12px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(22, 33, 62, 0.95);
-      border: 1px solid #0f3460;
-      border-radius: 10px;
-      padding: 8px 16px;
-      color: #a8dadc;
-      z-index: 100;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 13px;
-    }
-
-    #line-selector select {
-      background: #0f3460;
-      color: #a8dadc;
-      border: 1px solid #457b9d;
-      padding: 4px 8px;
-      border-radius: 6px;
-      font-size: 13px;
-    }
-
-    /* 読み込み表示 */
     #loading {
       position: fixed;
       inset: 0;
-      background: rgba(26, 26, 46, 0.9);
-      color: #a8dadc;
+      background: rgba(20, 53, 40, 0.86);
+      color: var(--text-main);
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -169,20 +416,127 @@
       z-index: 1000;
       font-size: 16px;
       gap: 12px;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
     }
 
-    #loading.hidden { display: none; }
+    #loading.hidden {
+      display: none;
+    }
 
     .spinner {
-      width: 40px;
-      height: 40px;
-      border: 3px solid #0f3460;
-      border-top-color: #e94560;
+      width: 42px;
+      height: 42px;
+      border: 3px solid rgba(255, 248, 230, 0.24);
+      border-top-color: var(--accent);
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
     }
 
-    @keyframes spin { to { transform: rotate(360deg); } }
+    @media (max-width: 980px) {
+      #topbar {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 620px) {
+      :root {
+        --header-h: 80px;
+      }
+
+      #shell {
+        gap: 8px;
+      }
+
+      #title-panel {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 16px;
+      }
+
+      #line-badge {
+        width: 100%;
+        min-width: 0;
+        grid-template-columns: auto 1fr;
+        align-items: center;
+      }
+
+      #control-panel {
+        grid-template-columns: 1fr;
+      }
+
+      .selector-row {
+        grid-template-columns: 1fr;
+      }
+
+      #controls {
+        padding: 8px;
+      }
+
+      .btn {
+        min-width: 0;
+        flex: 1 1 0;
+        min-height: 58px;
+      }
+
+      #legend {
+        grid-template-columns: 1fr;
+        gap: 10px;
+        padding: 12px 14px;
+      }
+    }
+
+    @media (max-width: 460px) {
+      :root {
+        --header-h: 84px;
+      }
+
+      #shell {
+        padding:
+          max(10px, env(safe-area-inset-top))
+          max(10px, env(safe-area-inset-right))
+          max(10px, env(safe-area-inset-bottom))
+          max(10px, env(safe-area-inset-left));
+      }
+
+      #title-panel {
+        padding: 12px 14px;
+        gap: 10px;
+      }
+
+      #title-panel h1 {
+        font-size: 24px;
+      }
+
+      #title-panel p,
+      .legend-note {
+        font-size: 12px;
+      }
+
+      #title-panel p {
+        display: none;
+      }
+
+      #line-badge {
+        padding: 10px 12px;
+      }
+
+      #active-line-chip {
+        font-size: 16px;
+      }
+
+      #app {
+        border-radius: 24px;
+      }
+
+      #corner {
+        padding: 10px 12px;
+      }
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
   </style>
   <!-- fetch-diagram.ts で生成されたデータファイル（存在しない場合はAPI直接取得） -->
   <script src="diagram-data.js" onerror="console.info('diagram-data.js 未生成。fetch-diagram.ts を実行してください。')"></script>
@@ -194,59 +548,97 @@
   <div>ダイヤグラムを構築中...</div>
 </div>
 
-<div id="app">
-  <div id="corner">
-    <div class="line-label">路線</div>
-    <div class="line-name" id="line-name-display">飯田線</div>
-  </div>
-  <div id="time-header">
-    <canvas id="time-canvas"></canvas>
-  </div>
-  <div id="station-sidebar">
-    <canvas id="station-canvas"></canvas>
-  </div>
-  <div id="diagram-area">
-    <canvas id="diagram-canvas"></canvas>
-  </div>
-</div>
+<div id="shell">
+  <header id="topbar">
+    <section id="title-panel" class="panel-card">
+      <div class="title-copy">
+        <div class="eyebrow">JR Central Local Diagram</div>
+        <h1>鉄道ダイヤグラム</h1>
+        <p>当日の運行図を 3時〜27時で表示。ドラッグ・ピンチ・ダブルタップに対応します。</p>
+      </div>
+      <div id="line-badge">
+        <span class="badge-label">表示中</span>
+        <strong id="active-line-chip">飯田線</strong>
+      </div>
+    </section>
 
-<div id="controls">
-  <button class="btn" onclick="zoomBtn(1.25)" title="拡大">＋</button>
-  <button class="btn" onclick="zoomBtn(0.8)" title="縮小">－</button>
-  <button class="btn" onclick="resetView()" title="リセット" style="font-size:13px;">↺</button>
-</div>
+    <section id="control-panel">
+      <div id="line-selector" class="panel-card">
+        <label for="line-select">路線セレクター</label>
+        <div class="selector-row">
+          <div class="select-wrap">
+            <select id="line-select" onchange="loadLine(this.value)">
+            </select>
+          </div>
+          <div id="data-summary">読込待機中</div>
+        </div>
+      </div>
 
-<div id="legend">
-  <div class="legend-row">
-    <div class="line-sample" style="background:#212121;"></div>
-    <span>普通</span>
-  </div>
-  <div class="legend-row">
-    <div class="line-sample" style="background:#2e7d32;"></div>
-    <span>区間快速</span>
-  </div>
-  <div class="legend-row">
-    <div class="line-sample" style="background:#1565c0;"></div>
-    <span>快速</span>
-  </div>
-  <div class="legend-row">
-    <div class="line-sample" style="background:#e65100;"></div>
-    <span>新快速</span>
-  </div>
-  <div class="legend-row">
-    <div class="line-sample" style="background:#7c6f00;"></div>
-    <span>特別快速</span>
-  </div>
-  <div class="legend-row">
-    <div class="line-sample" style="background:#d32f2f; height:5px;"></div>
-    <span>特急</span>
-  </div>
-</div>
+      <div id="controls" class="panel-card" role="group" aria-label="表示操作">
+        <button class="btn" onclick="zoomBtn(1.25)" title="拡大">
+          <span class="btn-symbol">＋</span>
+          <span class="btn-text">拡大</span>
+        </button>
+        <button class="btn" onclick="zoomBtn(0.8)" title="縮小">
+          <span class="btn-symbol">－</span>
+          <span class="btn-text">縮小</span>
+        </button>
+        <button class="btn" onclick="resetView()" title="初期表示">
+          <span class="btn-symbol">↺</span>
+          <span class="btn-text">初期表示</span>
+        </button>
+      </div>
+    </section>
+  </header>
 
-<div id="line-selector">
-  <label>路線選択：</label>
-  <select id="line-select" onchange="loadLine(this.value)">
-  </select>
+  <section id="legend" class="panel-card" aria-label="列車種別の凡例">
+    <div class="legend-copy">
+      <div class="legend-title">凡例</div>
+      <div class="legend-note">1本指で移動 / 2本指で拡大縮小 / ダブルタップで拡大</div>
+    </div>
+    <div class="legend-items">
+      <div class="legend-chip">
+        <div class="line-sample" style="background:#212121;"></div>
+        <span>普通</span>
+      </div>
+      <div class="legend-chip">
+        <div class="line-sample" style="background:#2e7d32;"></div>
+        <span>区間快速</span>
+      </div>
+      <div class="legend-chip">
+        <div class="line-sample" style="background:#1565c0;"></div>
+        <span>快速</span>
+      </div>
+      <div class="legend-chip">
+        <div class="line-sample" style="background:#e65100;"></div>
+        <span>新快速</span>
+      </div>
+      <div class="legend-chip">
+        <div class="line-sample" style="background:#7c6f00;"></div>
+        <span>特別快速</span>
+      </div>
+      <div class="legend-chip">
+        <div class="line-sample" style="background:#d32f2f; height:5px;"></div>
+        <span>特急</span>
+      </div>
+    </div>
+  </section>
+
+  <div id="app">
+    <div id="corner">
+      <div class="line-label">路線</div>
+      <div class="line-name" id="line-name-display">飯田線</div>
+    </div>
+    <div id="time-header">
+      <canvas id="time-canvas"></canvas>
+    </div>
+    <div id="station-sidebar">
+      <canvas id="station-canvas"></canvas>
+    </div>
+    <div id="diagram-area">
+      <canvas id="diagram-canvas"></canvas>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -671,8 +1063,25 @@ const LINES = {
 // ============================================================
 // レンダリング設定
 // ============================================================
-let SIDEBAR_W = 80;      // 駅名列幅 px（後で動的計算）
-const HEADER_H  = 50;    // 時間軸高さ px
+const FONT_FAMILY = "'BIZ UDPGothic', 'Hiragino Sans', 'Yu Gothic UI', sans-serif";
+const UI_THEME = {
+  headerBg: '#143528',
+  headerBorder: '#315f4d',
+  headerText: '#f8f4e8',
+  headerSubText: '#d7d0bb',
+  headerMinuteText: '#c6d0c5',
+  sidebarText: '#f8f4e8',
+  sidebarKmText: '#9fc8b1',
+  sidebarTick: '#6e947f',
+  canvasBg: '#fffaf0',
+  canvasOvernight: 'rgba(197, 107, 51, 0.11)',
+  gridMajor: '#233b2f',
+  gridMid: '#6f756d',
+  gridMinor: 'rgba(111, 117, 109, 0.24)',
+  stationGrid: 'rgba(35, 59, 47, 0.16)',
+};
+
+let SIDEBAR_W = 124;     // 駅名列幅 px（後で動的計算）
 const PX_PER_MIN = 2.5;  // 1分あたりの基本ピクセル数
 const PX_PER_KM  = 8.0;  // 1kmあたりの基本ピクセル数
 
@@ -699,6 +1108,19 @@ function yOfKm(km) {
   return km * PX_PER_KM * view.scale + view.offsetY;
 }
 
+function isCompactViewport() {
+  return window.innerWidth <= 460;
+}
+
+function updateLineChrome() {
+  document.getElementById('line-name-display').textContent = currentLine.name;
+  document.getElementById('active-line-chip').textContent = currentLine.name;
+}
+
+function updateDataSummary(text) {
+  document.getElementById('data-summary').textContent = text;
+}
+
 // ============================================================
 // Canvas取得
 // ============================================================
@@ -721,8 +1143,8 @@ function resizeAll() {
   diagCanvas.width  = dw;
   diagCanvas.height = dh;
   timeCanvas.width  = timeHeader.clientWidth;
-  timeCanvas.height = HEADER_H;
-  stCanvas.width    = SIDEBAR_W;
+  timeCanvas.height = timeHeader.clientHeight;
+  stCanvas.width    = stationBar.clientWidth;
   stCanvas.height   = stationBar.clientHeight;
 }
 
@@ -731,11 +1153,23 @@ function resizeAll() {
 // ============================================================
 function drawTimeHeader() {
   const ctx = timeCtx;
-  const w = timeCanvas.width, h = HEADER_H;
+  const w = timeCanvas.width, h = timeCanvas.height;
   ctx.clearRect(0, 0, w, h);
 
-  ctx.fillStyle = '#16213e';
+  ctx.fillStyle = UI_THEME.headerBg;
   ctx.fillRect(0, 0, w, h);
+
+  const overnightStart = Math.max(startMin(), 24 * 60);
+  if (overnightStart < endMin()) {
+    const ox0 = xOfMin(overnightStart);
+    const ox1 = xOfMin(endMin());
+    ctx.fillStyle = UI_THEME.canvasOvernight;
+    ctx.fillRect(Math.max(0, ox0), 0, Math.max(0, Math.min(w, ox1) - Math.max(0, ox0)), h);
+  }
+
+  const hourFont = isCompactViewport() ? 20 : 24;
+  const minorFont = isCompactViewport() ? 10 : 11;
+  const canShowMinorLabels = PX_PER_MIN * view.scale * 10 >= 22;
 
   for (let min = startMin(); min <= endMin(); min++) {
     const x = xOfMin(min);
@@ -743,32 +1177,33 @@ function drawTimeHeader() {
     const moh = min % 60;
 
     if (moh === 0) {
-      // 毎時0分：時刻ラベル
       const hour = Math.floor(min / 60);
-      ctx.fillStyle = '#ecf0f1';
-      ctx.font = 'bold 20px sans-serif';
+      ctx.fillStyle = hour >= 24 ? '#ffd8b8' : UI_THEME.headerText;
+      ctx.font = `700 ${hourFont}px ${FONT_FAMILY}`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(`${hour}`, x, h * 0.48);
+      ctx.fillText(String(hour).padStart(2, '0'), x, h * 0.37);
 
-      ctx.strokeStyle = '#546e7a';
-      ctx.lineWidth = 1;
+      ctx.fillStyle = UI_THEME.headerSubText;
+      ctx.font = `700 ${minorFont}px ${FONT_FAMILY}`;
+      ctx.fillText('00', x, h * 0.72);
+
+      ctx.strokeStyle = UI_THEME.headerBorder;
+      ctx.lineWidth = 1.1;
       ctx.beginPath();
-      ctx.moveTo(x, h * 0.65);
+      ctx.moveTo(x, h * 0.58);
       ctx.lineTo(x, h);
       ctx.stroke();
-    } else if (moh % 10 === 0) {
-      // 10分ごと：小ラベル
-      ctx.fillStyle = '#90a4ae';
-      ctx.font = '9px sans-serif';
+    } else if (moh % 10 === 0 && canShowMinorLabels) {
+      ctx.fillStyle = UI_THEME.headerMinuteText;
+      ctx.font = `600 ${minorFont}px ${FONT_FAMILY}`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(`${moh}`, x, h * 0.72);
+      ctx.fillText(String(moh).padStart(2, '0'), x, h * 0.72);
     }
   }
 
-  // 下ボーダー
-  ctx.strokeStyle = '#0f3460';
+  ctx.strokeStyle = UI_THEME.headerBorder;
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(0, h - 0.5);
@@ -781,46 +1216,53 @@ function drawTimeHeader() {
 // ============================================================
 function drawStationSidebar() {
   const ctx = stCtx;
-  const w = SIDEBAR_W, h = stCanvas.height;
+  const w = stCanvas.width, h = stCanvas.height;
   ctx.clearRect(0, 0, w, h);
 
-  ctx.fillStyle = '#16213e';
+  ctx.fillStyle = UI_THEME.headerBg;
   ctx.fillRect(0, 0, w, h);
 
   const stations = currentLine.stations;
-  const baseFontSize = Math.min(15, Math.max(10, 14 * view.scale));
-  const kmFontSize   = Math.min(12, Math.max(8,  11 * view.scale));
+  const baseFontSize = Math.min(16, Math.max(12, (isCompactViewport() ? 13 : 14) + (view.scale - 1) * 2));
+  const kmFontSize   = Math.min(12, Math.max(9, 10 + (view.scale - 1) * 1.3));
+  const minGap = view.scale >= 1.6 ? 18 : view.scale >= 1.0 ? 26 : 38;
+  let lastLabelY = -Infinity;
 
   for (let i = 0; i < stations.length; i++) {
     const st = stations[i];
     const y = yOfKm(st.km);
     if (y < -20 || y > h + 20) continue;
 
-    // 駅名
-    ctx.fillStyle = '#ecf0f1';
-    ctx.font = `${baseFontSize}px sans-serif`;
-    ctx.textAlign = 'right';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(st.name, w - 6, y);
-
-    // キロ程（主要駅のみ）
-    if (view.scale >= 0.6) {
-      ctx.fillStyle = '#7ec8e3';
-      ctx.font = `${kmFontSize}px sans-serif`;
-      ctx.fillText(`${st.km}km`, w - 6, y + baseFontSize + 1);
-    }
-
-    // 目盛り
-    ctx.strokeStyle = '#37474f';
+    ctx.strokeStyle = UI_THEME.sidebarTick;
     ctx.lineWidth = 0.5;
     ctx.beginPath();
     ctx.moveTo(w - 4, y);
     ctx.lineTo(w, y);
     ctx.stroke();
+
+    const isEndpoint = i === 0 || i === stations.length - 1;
+    if (!isEndpoint && y - lastLabelY < minGap) continue;
+
+    const showKm = view.scale >= 1.05 && (isEndpoint || view.scale >= 1.6 || i % 5 === 0);
+    const labelY = showKm ? y - 5 : y;
+
+    ctx.fillStyle = UI_THEME.sidebarText;
+    ctx.font = `700 ${baseFontSize}px ${FONT_FAMILY}`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(st.name, 12, labelY);
+
+    if (showKm) {
+      ctx.fillStyle = UI_THEME.sidebarKmText;
+      ctx.font = `600 ${kmFontSize}px ${FONT_FAMILY}`;
+      ctx.fillText(`${st.km.toFixed(1)} km`, 12, y + baseFontSize * 0.72);
+      lastLabelY = y + baseFontSize * 0.72;
+    } else {
+      lastLabelY = y;
+    }
   }
 
-  // 右ボーダー
-  ctx.strokeStyle = '#0f3460';
+  ctx.strokeStyle = UI_THEME.headerBorder;
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(w - 0.5, 0);
@@ -836,11 +1278,20 @@ function drawDiagram() {
   const w = diagCanvas.width, h = diagCanvas.height;
   ctx.clearRect(0, 0, w, h);
 
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = UI_THEME.canvasBg;
   ctx.fillRect(0, 0, w, h);
 
   const stations = currentLine.stations;
   const trains   = currentLine.trains;
+  const overnightStart = Math.max(startMin(), 24 * 60);
+  const minorGridVisible = PX_PER_MIN * view.scale * 2 >= 7;
+
+  if (overnightStart < endMin()) {
+    const ox0 = xOfMin(overnightStart);
+    const ox1 = xOfMin(endMin());
+    ctx.fillStyle = UI_THEME.canvasOvernight;
+    ctx.fillRect(Math.max(0, ox0), 0, Math.max(0, Math.min(w, ox1) - Math.max(0, ox0)), h);
+  }
 
   // ---- 時間グリッド線 ----
   for (let min = startMin(); min <= endMin(); min++) {
@@ -848,38 +1299,34 @@ function drawDiagram() {
     if (x < 0 || x > w) continue;
     const moh = min % 60;
 
-    // 奇数分は描画しない
     if (moh !== 0 && moh % 10 !== 0 && moh % 2 !== 0) continue;
+    if (moh % 10 !== 0 && !minorGridVisible) continue;
 
     ctx.beginPath();
     ctx.moveTo(x, 0);
     ctx.lineTo(x, h);
 
     if (moh === 0) {
-      // 毎時0分：太実線
-      ctx.strokeStyle = '#000000';
+      ctx.strokeStyle = UI_THEME.gridMajor;
       ctx.lineWidth = 1.5;
       ctx.setLineDash([]);
-    } else if (moh % 10 === 0) {
-      // 10分ごと：細実線（黒）
-      ctx.strokeStyle = '#555555';
+    } else if (moh % 10 === 0 && moh !== 0) {
+      ctx.strokeStyle = UI_THEME.gridMid;
       ctx.lineWidth = 0.6;
       ctx.setLineDash([]);
     } else {
-      // 2分ごと：細点線（黒）
-      ctx.strokeStyle = '#888888';
-      ctx.lineWidth = 0.8;
-      ctx.setLineDash([2, 2]);
+      ctx.strokeStyle = UI_THEME.gridMinor;
+      ctx.lineWidth = 0.7;
+      ctx.setLineDash([2, 3]);
     }
     ctx.stroke();
   }
   ctx.setLineDash([]);
 
-  // ---- 駅グリッド線 ----
   for (let i = 0; i < stations.length; i++) {
     const y = yOfKm(stations[i].km);
     if (y < 0 || y > h) continue;
-    ctx.strokeStyle = '#333333';
+    ctx.strokeStyle = UI_THEME.stationGrid;
     ctx.lineWidth = 0.5;
     ctx.beginPath();
     ctx.moveTo(0, y);
@@ -887,11 +1334,8 @@ function drawDiagram() {
     ctx.stroke();
   }
 
-  // ---- 列車線 ----
-  // ズーム時に太くなりすぎないよう逆数補正（1px前後に収束）
   const lineW = Math.max(0.8, Math.min(2.0, 1.4 / Math.sqrt(view.scale)));
 
-  // 停車時刻を取得（arr/dep 形式と旧 t 形式の両方に対応）
   function stopArr(s) { return s.arr ?? s.t ?? null; }
   function stopDep(s) { return s.dep ?? s.t ?? null; }
 
@@ -931,9 +1375,7 @@ function drawDiagram() {
       const y0 = yOfKm(stations[s0.si].km);
       const x1 = xOfMin(t2m(stopArr(s1) ?? stopDep(s1)));
       const y1 = yOfKm(stations[s1.si].km);
-      // 線の角度（下り=正角度で上から下、上り=負角度で下から上）
       const angle = Math.atan2(y1 - y0, x1 - x0);
-      // 始点から少し進んだ位置に配置
       const lx = x0 + Math.cos(angle) * 10;
       const ly = y0 + Math.sin(angle) * 10;
       const size = Math.max(7, Math.min(10, 9 * view.scale));
@@ -941,7 +1383,7 @@ function drawDiagram() {
       ctx.translate(lx, ly);
       ctx.rotate(angle);
       ctx.fillStyle = color;
-      ctx.font = `bold ${size}px sans-serif`;
+      ctx.font = `700 ${size}px ${FONT_FAMILY}`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'bottom';
       ctx.fillText(train.trainNo, 0, -2);
@@ -972,6 +1414,7 @@ function zoom(factor, cx, cy) {
   view.offsetX = cx - (cx - view.offsetX) * ratio;
   view.offsetY = cy - (cy - view.offsetY) * ratio;
   view.scale = newScale;
+  clamp();
   drawAll();
 }
 
@@ -981,6 +1424,7 @@ function resetView() {
   view.offsetX = 0;
   view.offsetY = 0;
   view.scale   = 1.0;
+  clamp();
   drawAll();
 }
 
@@ -1008,19 +1452,26 @@ diagArea.addEventListener('wheel', e => {
   zoom(e.deltaY < 0 ? 1.1 : 0.9, e.clientX - rect.left, e.clientY - rect.top);
 }, { passive: false });
 
+diagArea.addEventListener('dblclick', e => {
+  const rect = diagArea.getBoundingClientRect();
+  zoom(1.25, e.clientX - rect.left, e.clientY - rect.top);
+});
+
 // ============================================================
 // タッチ操作（スマホ対応）
 // ============================================================
 let touches = [], lastDist = 0, lastMidX = 0, lastMidY = 0;
+let lastTapTime = 0, lastTapX = 0, lastTapY = 0, touchMoved = false;
 
 diagArea.addEventListener('touchstart', e => {
   e.preventDefault();
   touches = Array.from(e.touches);
+  touchMoved = false;
   if (touches.length === 2) {
     lastDist = dist(touches);
     const m = mid(touches);
     lastMidX = m.x; lastMidY = m.y;
-  } else {
+  } else if (touches.length === 1) {
     lx = touches[0].clientX; ly = touches[0].clientY;
   }
 }, { passive: false });
@@ -1037,9 +1488,13 @@ diagArea.addEventListener('touchmove', e => {
     view.offsetX += nm.x - lastMidX;
     view.offsetY += nm.y - lastMidY;
     lastDist = nd; lastMidX = nm.x; lastMidY = nm.y;
-  } else if (t.length === 1) {
-    view.offsetX += t[0].clientX - lx;
-    view.offsetY += t[0].clientY - ly;
+    touchMoved = true;
+  } else if (t.length === 1 && touches.length >= 1) {
+    const dx = t[0].clientX - lx;
+    const dy = t[0].clientY - ly;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) touchMoved = true;
+    view.offsetX += dx;
+    view.offsetY += dy;
     lx = t[0].clientX; ly = t[0].clientY;
   }
   touches = t;
@@ -1048,7 +1503,24 @@ diagArea.addEventListener('touchmove', e => {
 }, { passive: false });
 
 diagArea.addEventListener('touchend', e => {
+  const rect = diagArea.getBoundingClientRect();
+  const ended = Array.from(e.changedTouches);
   touches = Array.from(e.touches);
+  if (touches.length === 0 && ended.length === 1 && !touchMoved) {
+    const tap = ended[0];
+    const now = Date.now();
+    if (now - lastTapTime < 280 && Math.hypot(tap.clientX - lastTapX, tap.clientY - lastTapY) < 28) {
+      zoom(1.35, tap.clientX - rect.left, tap.clientY - rect.top);
+      lastTapTime = 0;
+    } else {
+      lastTapTime = now;
+      lastTapX = tap.clientX;
+      lastTapY = tap.clientY;
+    }
+  } else if (touches.length === 1) {
+    lx = touches[0].clientX;
+    ly = touches[0].clientY;
+  }
   lastDist = 0;
 });
 
@@ -1079,7 +1551,7 @@ function clamp() {
 function loadLine(key) {
   if (!LINES[key]) return;
   currentLine = LINES[key];
-  document.getElementById('line-name-display').textContent = currentLine.name;
+  updateLineChrome();
   applySidebarWidth(calcSidebarWidth(currentLine.stations));
   resizeAll();
   resetView();
@@ -1095,12 +1567,12 @@ function calcSidebarWidth(stations) {
   const tmp = document.createElement('canvas').getContext('2d');
   let maxW = 0;
   for (const st of stations) {
-    tmp.font = '14px sans-serif';
+    tmp.font = `700 ${isCompactViewport() ? 13 : 14}px ${FONT_FAMILY}`;
     maxW = Math.max(maxW, tmp.measureText(st.name).width);
-    tmp.font = '11px sans-serif';
-    maxW = Math.max(maxW, tmp.measureText(`${st.km}km`).width);
   }
-  return Math.ceil(maxW) + 14; // 左右パディング込み
+  const minW = isCompactViewport() ? 116 : 124;
+  const maxWLimit = isCompactViewport() ? Math.floor(window.innerWidth * 0.34) : 190;
+  return Math.max(minW, Math.min(maxWLimit, Math.ceil(maxW) + 28));
 }
 
 function applySidebarWidth(w) {
@@ -1108,7 +1580,12 @@ function applySidebarWidth(w) {
   document.getElementById('app').style.setProperty('--sidebar-w', w + 'px');
 }
 
-window.addEventListener('resize', () => { resizeAll(); drawAll(); });
+window.addEventListener('resize', () => {
+  applySidebarWidth(calcSidebarWidth(currentLine.stations));
+  resizeAll();
+  clamp();
+  drawAll();
+});
 
 resizeAll();
 
@@ -1142,8 +1619,9 @@ resizeAll();
       const defaultKey = Object.keys(d.lines).find(k => k === 'iida') || Object.keys(d.lines)[0];
       select.value = defaultKey;
       currentLine = LINES[defaultKey];
-      document.getElementById('line-name-display').textContent = currentLine.name;
+      updateLineChrome();
       applySidebarWidth(calcSidebarWidth(currentLine.stations));
+      updateDataSummary(`${Object.keys(d.lines).length}路線 / ${totalTrains}本`);
       loadingMsg.textContent = `ローカルデータ読込完了（${Object.keys(d.lines).length}路線 / ${totalTrains}本）`;
 
     // 旧形式: DIAGRAM_DATA.lineKey, .stations, .trains（後方互換）
@@ -1161,8 +1639,9 @@ resizeAll();
       select.appendChild(opt);
       select.value = d.lineKey;
       currentLine = LINES[d.lineKey];
-      document.getElementById('line-name-display').textContent = d.lineName;
+      updateLineChrome();
       applySidebarWidth(calcSidebarWidth(d.stations));
+      updateDataSummary(`1路線 / ${d.trains.length}本`);
       loadingMsg.textContent = `ローカルデータ読込完了（${d.trains.length}本）`;
     }
 
@@ -1180,14 +1659,17 @@ resizeAll();
     const trains = await fetchIidaTrains();
     if (trains.length === 0) throw new Error('列車データが0件');
     LINES.iida.trains = trains;
+    updateDataSummary(`1路線 / ${trains.length}本`);
     loadingMsg.textContent = `${trains.length}本の列車データを取得しました`;
   } catch (e) {
     console.warn('API取得失敗（fetch-diagram.ts を先に実行してください）:', e);
     loadingMsg.textContent = 'データ未取得。fetch-diagram.ts を実行してください。';
     LINES.iida.trains = IIDA_TRAINS_FALLBACK;
+    updateDataSummary(`1路線 / ${IIDA_TRAINS_FALLBACK.length}本`);
     await new Promise(r => setTimeout(r, 2000));
   }
   currentLine = LINES.iida;
+  updateLineChrome();
   applySidebarWidth(calcSidebarWidth(currentLine.stations));
   resizeAll();
   drawAll();
