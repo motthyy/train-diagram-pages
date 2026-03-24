@@ -94,16 +94,16 @@
     }
 
     #bottom-dock {
-      position: absolute;
+      position: fixed;
       left: 50%;
-      bottom: max(8px, env(safe-area-inset-bottom));
+      bottom: max(4px, env(safe-area-inset-bottom));
       transform: translateX(-50%);
       z-index: 40;
       display: flex;
       flex-direction: column;
       align-items: center;
       gap: 6px;
-      width: min(calc(100% - 12px), 340px);
+      width: min(calc(100vw - 8px), 340px);
       pointer-events: none;
     }
 
@@ -127,14 +127,10 @@
       display: grid;
       gap: 8px;
       pointer-events: auto;
-      transition: opacity 0.18s ease, transform 0.18s ease;
-      transform-origin: bottom center;
     }
 
     #bottom-panel.is-hidden {
-      opacity: 0;
-      transform: translateY(12px) scale(0.98);
-      pointer-events: none;
+      display: none;
     }
 
     #line-selector {
@@ -963,10 +959,11 @@ const UI_THEME = {
   sidebarTick: '#6e947f',
   canvasBg: '#fffaf0',
   canvasOvernight: 'rgba(197, 107, 51, 0.11)',
-  gridMajor: '#233b2f',
-  gridMid: '#6f756d',
-  gridMinor: 'rgba(111, 117, 109, 0.24)',
-  stationGrid: 'rgba(35, 59, 47, 0.16)',
+  gridMajor: '#000000',
+  gridMid: '#000000',
+  gridMinor: '#000000',
+  stationGrid: 'rgba(0, 0, 0, 0.78)',
+  stationGridExpress: '#000000',
 };
 
 let SIDEBAR_W = 108;     // 駅名列幅 px（後で動的計算）
@@ -1186,6 +1183,12 @@ function drawDiagram() {
   const trains   = currentLine.trains;
   const overnightStart = Math.max(startMin(), 24 * 60);
   const minorGridVisible = PX_PER_MIN * view.scale * 2 >= 7;
+  const expressStops = new Set();
+
+  for (const train of trains) {
+    if (train.kind !== 'express') continue;
+    for (const stop of train.stops) expressStops.add(stop.si);
+  }
 
   if (overnightStart < endMin()) {
     const ox0 = xOfMin(overnightStart);
@@ -1209,16 +1212,16 @@ function drawDiagram() {
 
     if (moh === 0) {
       ctx.strokeStyle = UI_THEME.gridMajor;
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 1.8;
       ctx.setLineDash([]);
     } else if (moh % 10 === 0 && moh !== 0) {
       ctx.strokeStyle = UI_THEME.gridMid;
-      ctx.lineWidth = 0.6;
+      ctx.lineWidth = 1.0;
       ctx.setLineDash([]);
     } else {
       ctx.strokeStyle = UI_THEME.gridMinor;
-      ctx.lineWidth = 0.7;
-      ctx.setLineDash([2, 3]);
+      ctx.lineWidth = 1.0;
+      ctx.setLineDash([2, 2]);
     }
     ctx.stroke();
   }
@@ -1227,8 +1230,9 @@ function drawDiagram() {
   for (let i = 0; i < stations.length; i++) {
     const y = yOfKm(stations[i].km);
     if (y < 0 || y > h) continue;
-    ctx.strokeStyle = UI_THEME.stationGrid;
-    ctx.lineWidth = 0.5;
+    const isExpressStop = expressStops.has(i);
+    ctx.strokeStyle = isExpressStop ? UI_THEME.stationGridExpress : UI_THEME.stationGrid;
+    ctx.lineWidth = isExpressStop ? 1.8 : 1.0;
     ctx.beginPath();
     ctx.moveTo(0, y);
     ctx.lineTo(w, y);
